@@ -3,6 +3,7 @@
 | Diagram | Source | Image |
 | --- | --- | --- |
 | Architecture overview | `overview.svg` (hand-drawn SVG, edit the file directly) | `overview.svg` |
+| Component diagram | `components.puml` | `components.svg` |
 | Class diagram | `class.puml` | `class.svg` |
 | Sequence: live detection | `seq-detection.puml` | `seq-detection.svg` |
 | Sequence: mode switch | `seq-mode-switch.puml` | `seq-mode-switch.svg` |
@@ -16,10 +17,10 @@ All PlantUML diagrams share the colours and fonts in `style.iuml`; the sequence 
 The `.svg` files are snapshots, so export them again after changing a `.puml` file. Download the [PlantUML jar](https://plantuml.com/download) (needs Java) and run from this folder:
 
 ```powershell
-java -jar C:\path\to\plantuml.jar -charset UTF-8 -tsvg class.puml use-cases.puml seq-*.puml
+java -jar C:\path\to\plantuml.jar -charset UTF-8 -tsvg components.puml class.puml use-cases.puml seq-*.puml
 ```
 
-No Graphviz is needed: the class and use-case diagrams use PlantUML's built-in Smetana layout. In VS Code, the [PlantUML extension](https://github.com/qjebbs/vscode-plantuml) shows a live preview with `Alt+D`.
+No Graphviz is needed: the component, class and use-case diagrams use PlantUML's built-in Smetana layout. In VS Code, the [PlantUML extension](https://github.com/qjebbs/vscode-plantuml) shows a live preview with `Alt+D`.
 
 ## Technical references
 

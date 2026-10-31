@@ -18,4 +18,4 @@ Here, **local** means a developer's everyday computer. A **server** is a separat
 
 Before choosing a shared server, confirm its CPU/RAM/GPU capacity, availability, access, cost and energy-measurement support.
 
-See the [architecture overview](ARCHITECTURE.md), [architecture alternatives](ARCHITECTURE_COMPARISON.md) and [review checklist](CHECKLIST.md).
+See the [architecture overview](ARCHITECTURE.md), [architecture decisions](ARCHITECTURE.md#4-architecture-decisions) and [review checklist](CHECKLIST.md).

@@ -17,19 +17,19 @@ actor "Carbon signal" as carbon
 actor "EMSC catalogue" as emsc
 
 rectangle QuakeShift {
-  usecase "Detect earthquakes\nin near real time" as UC1
-  usecase "Browse earthquakes\nand dashboards" as UC2
-  usecase "Switch processing\nprofile" as UC3 #DCFCE7;line:15803D
-  usecase "Back-fill eco periods\nwith the big model" as UC4 #DCFCE7;line:15803D
-  usecase "Evaluate detections\nagainst EMSC" as UC5 #DCFCE7;line:15803D
+  usecase "UC1 Detect earthquakes\nin near real time" as UC1
+  usecase "UC2 Switch processing\nprofile" as UC2 #DCFCE7;line:15803D
+  usecase "UC3 Back-fill eco periods\nwith the big model" as UC3 #DCFCE7;line:15803D
+  usecase "UC4 Evaluate detections\nagainst EMSC" as UC4 #DCFCE7;line:15803D
+  usecase "UC5 Browse earthquakes\nand dashboards" as UC5
 }
 
 src -- UC1
-user -- UC2
+carbon -- UC2
 carbon -- UC3
-carbon -- UC4
-emsc -- UC5
+emsc -- UC4
+user -- UC4
 user -- UC5
 
-UC4 ..> UC1 : <<include>>
+UC3 ..> UC1 : <<include>>
 @enduml

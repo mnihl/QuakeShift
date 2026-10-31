@@ -1,0 +1,48 @@
+@startuml components
+!include style.iuml
+!pragma layout smetana
+skinparam componentStyle rectangle
+skinparam defaultFontSize 14
+skinparam ArrowFontSize 12
+skinparam nodesep 45
+skinparam ranksep 55
+
+title QuakeShift – component diagram
+
+component "GEOFON\n(live / replay)" as src #$external
+actor "User" as user
+component "EMSC" as emsc #$external
+
+rectangle "Kubernetes cluster" #FAFAFA {
+  component "Ingestor" as ing #$pipeline
+  queue "Kafka\nwaveforms · picks" as kafka #$store
+  component "Live picker\neco · balanced · performance" as pick #$pipeline
+  component "Back-fill job" as bf #$pipeline
+  component "Associator" as as #$pipeline
+  database "PostgreSQL" as db #$store
+  component "Results API" as api #$pipeline
+  component "Carbon signal" as cs #$control
+  component "Carbon controller" as ctl #$control
+  component "Evaluator" as ev #$control
+  component "Prometheus" as prom #$observe
+  component "Grafana" as graf #$observe
+}
+
+src -down-> ing : SeedLink
+ing -down-> kafka : waveforms
+kafka <-down-> pick : waveforms in,\npicks out
+kafka <-down-> bf : re-read,\nextra picks
+kafka -right-> as : picks
+as -down-> db : earthquakes
+api -up-> db : read
+user -down-> api : GET /events
+ev -left-> api : GET /events
+emsc -left-> ev
+
+cs -right-> ctl : intensity
+ctl .up.> pick : scale\n(Kubernetes API)
+ctl .up.> bf : start job
+ctl .down.> prom : read lag
+graf -left-> prom : query
+user -down-> graf
+@enduml
