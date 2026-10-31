@@ -1,26 +1,35 @@
-@startuml
+@startuml use-cases
+!include style.iuml
 !pragma layout smetana
 left to right direction
-skinparam shadowing false
-skinparam defaultFontName Arial
-title QuakeShift: use cases
-actor Researcher
-actor "Waveform provider" as Source
-actor "Carbon / resource\nproviders" as Signals
-actor "Kubernetes platform" as Kube
-actor "EMSC catalogue" as EMSC
+skinparam ActorBorderColor #6B7280
+skinparam ActorBackgroundColor #F3F4F6
+skinparam UsecaseBackgroundColor #DBEAFE
+skinparam UsecaseBorderColor #2563EB
+skinparam UsecaseFontSize 12
+skinparam RectangleBackgroundColor #FAFAFA
+
+title QuakeShift – use cases
+
+actor "User\n(duty seismologist)" as user
+actor "Waveform source\n(GEOFON / replay)" as src
+actor "Carbon signal" as carbon
+actor "EMSC catalogue" as emsc
+
 rectangle QuakeShift {
-  usecase "Detect and inspect\nearthquake candidates" as Detect
-  usecase "Adapt processing\nand redeploy workers" as Adapt
-  usecase "Reprocess deferred\nrecordings" as Backfill
-  usecase "Replay and evaluate\ndetection and carbon cost" as Eval
+  usecase "Detect earthquakes\nin near real time" as UC1
+  usecase "Browse earthquakes\nand dashboards" as UC2
+  usecase "Switch processing\nprofile" as UC3 #DCFCE7;line:15803D
+  usecase "Back-fill eco periods\nwith the big model" as UC4 #DCFCE7;line:15803D
+  usecase "Evaluate detections\nagainst EMSC" as UC5 #DCFCE7;line:15803D
 }
-Researcher -- Detect
-Source -- Detect
-Signals -- Adapt
-Kube -- Adapt
-Signals -- Backfill
-Researcher -- Eval
-EMSC -- Eval
-Eval ..> Detect : <<include>>
+
+src -- UC1
+user -- UC2
+carbon -- UC3
+carbon -- UC4
+emsc -- UC5
+user -- UC5
+
+UC4 ..> UC1 : <<include>>
 @enduml

@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="630" viewBox="0 0 1100 630" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4B5563"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#15803D"/>
+    </marker>
+    <style>
+      .box { stroke-width: 1.6; }
+      .pipe { fill: #DBEAFE; stroke: #2563EB; }
+      .store { fill: #FEF3C7; stroke: #B45309; }
+      .ctl { fill: #DCFCE7; stroke: #15803D; }
+      .obs { fill: #EDE9FE; stroke: #6D28D9; }
+      .ext { fill: #F3F4F6; stroke: #6B7280; }
+      .name { font-size: 15px; font-weight: 600; fill: #111827; }
+      .sub { font-size: 12px; fill: #4B5563; }
+      .lbl { font-size: 12px; fill: #374151; }
+      .lane { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; fill: #9CA3AF; }
+      .flow { fill: none; stroke: #4B5563; stroke-width: 1.6; }
+      .control { fill: none; stroke: #15803D; stroke-width: 1.6; stroke-dasharray: 6 4; }
+    </style>
+  </defs>
+
+  <rect width="1100" height="630" fill="#FFFFFF"/>
+
+  <text x="20" y="42" font-size="22" font-weight="700" fill="#111827">QuakeShift — architecture overview</text>
+
+  <!-- Kubernetes cluster -->
+  <rect x="180" y="80" width="810" height="480" rx="14" fill="#FAFAFA" stroke="#9CA3AF" stroke-width="1.5" stroke-dasharray="8 5"/>
+  <text x="978" y="100" text-anchor="end" font-size="12" font-weight="600" fill="#6B7280">Kubernetes cluster</text>
+
+  <text x="200" y="134" class="lane">DATA FLOW</text>
+  <text x="200" y="374" class="lane">CARBON CONTROL</text>
+  <text x="200" y="474" class="lane">OPERATIONS</text>
+
+  <!-- Source -->
+  <rect x="20" y="150" width="130" height="60" rx="8" class="box ext"/>
+  <text x="85" y="176" text-anchor="middle" class="name">GEOFON</text>
+  <text x="85" y="195" text-anchor="middle" class="sub">live or replay</text>
+
+  <!-- Data flow row -->
+  <rect x="205" y="150" width="110" height="60" rx="8" class="box pipe"/>
+  <text x="260" y="185" text-anchor="middle" class="name">Ingestor</text>
+
+  <rect x="345" y="150" width="120" height="60" rx="8" class="box store"/>
+  <text x="405" y="176" text-anchor="middle" class="name">waveforms</text>
+  <text x="405" y="195" text-anchor="middle" class="sub">Kafka topic</text>
+
+  <!-- Picker workers -->
+  <rect x="495" y="112" width="190" height="218" rx="12" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <text x="590" y="131" text-anchor="middle" font-size="12" font-weight="700" fill="#1D4ED8">Picker workers</text>
+
+  <rect x="507" y="145" width="166" height="70" rx="8" class="box pipe"/>
+  <text x="590" y="174" text-anchor="middle" class="name">Live picker</text>
+  <text x="590" y="194" text-anchor="middle" class="sub">eco · balanced · performance</text>
+
+  <rect x="507" y="250" width="166" height="62" rx="8" class="box pipe"/>
+  <text x="590" y="276" text-anchor="middle" class="name">Back-fill job</text>
+  <text x="590" y="295" text-anchor="middle" class="sub">EQTransformer</text>
+
+  <rect x="715" y="150" width="100" height="60" rx="8" class="box store"/>
+  <text x="765" y="176" text-anchor="middle" class="name">picks</text>
+  <text x="765" y="195" text-anchor="middle" class="sub">Kafka topic</text>
+
+  <rect x="845" y="150" width="120" height="60" rx="8" class="box pipe"/>
+  <text x="905" y="185" text-anchor="middle" class="name">Associator</text>
+
+  <!-- PostgreSQL -->
+  <path d="M845,262 a60,9 0 0,0 120,0 v56 a60,9 0 0,1 -120,0 z" class="box store"/>
+  <ellipse cx="905" cy="262" rx="60" ry="9" class="box store"/>
+  <text x="905" y="298" text-anchor="middle" class="name">PostgreSQL</text>
+  <text x="905" y="315" text-anchor="middle" class="sub">earthquakes</text>
+
+  <rect x="845" y="370" width="120" height="52" rx="8" class="box pipe"/>
+  <text x="905" y="401" text-anchor="middle" class="name">Results API</text>
+
+  <!-- Carbon control row -->
+  <rect x="290" y="380" width="130" height="60" rx="8" class="box ctl"/>
+  <text x="355" y="406" text-anchor="middle" class="name">Carbon signal</text>
+  <text x="355" y="425" text-anchor="middle" class="sub">simulated</text>
+
+  <rect x="510" y="380" width="160" height="60" rx="8" class="box ctl"/>
+  <text x="590" y="415" text-anchor="middle" class="name">Carbon controller</text>
+
+  <!-- Operations row -->
+  <rect x="530" y="482" width="120" height="50" rx="8" class="box obs"/>
+  <text x="590" y="512" text-anchor="middle" class="name">Prometheus</text>
+
+  <rect x="680" y="482" width="110" height="50" rx="8" class="box obs"/>
+  <text x="735" y="512" text-anchor="middle" class="name">Grafana</text>
+
+  <rect x="845" y="482" width="120" height="50" rx="8" class="box ctl"/>
+  <text x="905" y="512" text-anchor="middle" class="name">Evaluator</text>
+
+  <!-- Outside, right -->
+  <circle cx="1050" cy="372" r="11" fill="#F3F4F6" stroke="#6B7280" stroke-width="1.5"/>
+  <path d="M1028,418 q0,-32 22,-32 q22,0 22,32 z" fill="#F3F4F6" stroke="#6B7280" stroke-width="1.5"/>
+  <text x="1050" y="438" text-anchor="middle" class="name">User</text>
+
+  <rect x="1010" y="482" width="80" height="50" rx="8" class="box ext"/>
+  <text x="1050" y="512" text-anchor="middle" class="name">EMSC</text>
+
+  <!-- Data arrows -->
+  <path d="M150,180 H201" class="flow" marker-end="url(#arrow)"/>
+  <path d="M315,180 H341" class="flow" marker-end="url(#arrow)"/>
+  <path d="M465,180 H503" class="flow" marker-end="url(#arrow)"/>
+  <path d="M405,210 V281 H503" class="flow" marker-end="url(#arrow)"/>
+  <text x="413" y="250" class="lbl">re-read</text>
+  <path d="M673,180 H711" class="flow" marker-end="url(#arrow)"/>
+  <path d="M673,281 H765 V214" class="flow" marker-end="url(#arrow)"/>
+  <path d="M815,180 H841" class="flow" marker-end="url(#arrow)"/>
+  <path d="M905,210 V249" class="flow" marker-end="url(#arrow)"/>
+  <path d="M905,370 V331" class="flow" marker-end="url(#arrow)"/>
+  <path d="M1028,402 H969" class="flow" marker-end="url(#arrow)"/>
+  <path d="M905,482 V426" class="flow" marker-end="url(#arrow)"/>
+  <path d="M1010,507 H969" class="flow" marker-end="url(#arrow)"/>
+  <path d="M680,507 H654" class="flow" marker-end="url(#arrow)"/>
+
+  <!-- Control arrows -->
+  <path d="M420,410 H506" class="control" marker-end="url(#arrowGreen)"/>
+  <text x="463" y="402" text-anchor="middle" class="lbl">gCO₂/kWh</text>
+  <path d="M590,380 V334" class="control" marker-end="url(#arrowGreen)"/>
+  <text x="598" y="362" class="lbl">switch profile</text>
+  <path d="M670,410 H805 V290 H841" class="control" marker-end="url(#arrowGreen)"/>
+  <text x="682" y="402" class="lbl">log mode</text>
+  <path d="M590,440 V478" class="control" marker-end="url(#arrowGreen)"/>
+  <text x="598" y="464" class="lbl">read lag</text>
+
+  <!-- Legend -->
+  <g font-size="12" fill="#374151">
+    <rect x="180" y="588" width="14" height="14" rx="3" class="pipe" stroke-width="1.2"/>
+    <text x="200" y="600">Pipeline</text>
+    <rect x="275" y="588" width="14" height="14" rx="3" class="store" stroke-width="1.2"/>
+    <text x="295" y="600">Kafka / storage</text>
+    <rect x="410" y="588" width="14" height="14" rx="3" class="ctl" stroke-width="1.2"/>
+    <text x="430" y="600">Carbon control</text>
+    <rect x="540" y="588" width="14" height="14" rx="3" class="obs" stroke-width="1.2"/>
+    <text x="560" y="600">Monitoring</text>
+    <rect x="650" y="588" width="14" height="14" rx="3" class="ext" stroke-width="1.2"/>
+    <text x="670" y="600">External</text>
+    <path d="M750,595 H785" class="flow" marker-end="url(#arrow)"/>
+    <text x="792" y="600">data</text>
+    <path d="M835,595 H870" class="control" marker-end="url(#arrowGreen)"/>
+    <text x="877" y="600">control</text>
+  </g>
+</svg>

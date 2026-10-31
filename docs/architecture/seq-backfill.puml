@@ -1,0 +1,26 @@
+@startuml seq-backfill
+!include style.iuml
+!include seq-style.iuml
+
+title Green back-fill
+
+participant "Carbon\ncontroller" as ctl #$control
+participant "Kubernetes" as k8s #$external
+participant "Back-fill\njob" as job #$pipeline
+queue "Kafka" as k #$store
+participant "Associator" as as #$pipeline
+database "PostgreSQL" as db #$store
+
+ctl -> ctl : grid is clean again
+ctl -> k8s : start back-fill for\nlast eco period
+k8s -> job : start
+job -> k : re-read eco period
+loop each window
+  job -> job : EQTransformer
+  job -> k : picks
+end
+k -> as : picks
+as -> db : save missed earthquakes
+
+note over job, k : Kafka keeps waveforms for 7 days
+@enduml

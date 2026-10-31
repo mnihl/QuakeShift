@@ -1,0 +1,28 @@
+@startuml seq-mode-switch
+!include style.iuml
+!include seq-style.iuml
+
+title Carbon-aware mode switch
+
+participant "Carbon\ncontroller" as ctl #$control
+participant "Carbon\nsignal" as cs #$control
+participant "Kubernetes" as k8s #$external
+participant "Eco\npickers" as eco #$pipeline
+participant "Performance\npickers" as perf #$pipeline
+database "PostgreSQL" as db #$store
+
+loop every 30 s
+  ctl -> cs : current intensity?
+  cs --> ctl : high
+  ctl -> ctl : choose profile: eco
+  opt profile changed
+    ctl -> k8s : scale eco pickers up
+    k8s -> eco : start
+    ctl -> k8s : scale performance pickers down
+    k8s -> perf : stop
+    ctl -> db : log mode change
+  end
+end
+
+note over eco, perf : same Kafka consumer group, so no data is lost
+@enduml

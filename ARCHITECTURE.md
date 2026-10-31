@@ -1,74 +1,70 @@
 # QuakeShift — architecture overview
 
-**Summary (proposal).** Detect earthquakes from European seismic recordings using pretrained models, while adapting computation to electricity's carbon intensity and available hardware. Run a two-person prototype in Docker on local Kubernetes (kind/minikube); train no model weights.
+QuakeShift detects earthquakes in live data from European seismometer stations using pretrained models. It changes how much computing it does depending on the carbon intensity of the electricity grid. Everything runs in Docker on a local Kubernetes cluster (kind or minikube), on CPUs only. We do not train any models.
+
+![QuakeShift architecture overview](docs/architecture/overview.svg)
 
 ## Data and detection
 
-- **GEOFON:** GFZ's seismological network and data service. **SeedLink:** the protocol used to stream its live station recordings. Replay archived recordings for repeatable tests.
-- **PhaseNet / EQTransformer:** pretrained neural models, available through the **SeisBench** Python library, that identify P (compressional) and S (shear) wave arrival times used to locate earthquakes. EQTransformer also detects earthquake signals.
-- **STA/LTA:** the ratio of short-term to long-term averages of signal level; a lightweight trigger for deciding when to run a neural model.
-- **EMSC:** European-Mediterranean Seismological Centre; its earthquake catalogue supplies reference events and magnitudes for evaluation.
+- **GEOFON** (GFZ Potsdam) streams live station data over the **SeedLink** protocol. For tests and the demo we replay recorded data of real earthquakes, so runs are repeatable.
+- **PhaseNet** and **EQTransformer** are pretrained neural networks from the **SeisBench** library. They mark when the P wave (fast, first) and the S wave (slower) arrive at a station. This is called *picking*.
+- **STA/LTA** compares the signal level of the last second with the last 30 seconds. It is almost free to compute, so in eco mode it decides when the neural network is worth running.
+- The **associator** declares an earthquake when picks from at least 3 stations arrive within 10 seconds of each other.
+- The **EMSC** catalogue is our reference: we compare our detections with it to measure recall and precision.
 
-| Mode | Processing policy |
-| --- | --- |
-| Performance | EQTransformer on all configured stations |
-| Balanced | PhaseNet on all configured stations |
-| Eco | Fewer inference stations; STA/LTA triggers PhaseNet; retain all raw recordings |
+| Profile | When | What runs |
+| --- | --- | --- |
+| Performance | low carbon intensity | EQTransformer on all stations |
+| Balanced | medium | PhaseNet on all stations |
+| Eco | high carbon intensity | STA/LTA first; PhaseNet only on triggered windows of core stations |
 
-## Use cases and quality targets
+## Use cases and targets
 
-1. **Detect and inspect:** associate arrivals across stations using location and travel times; expose earthquake candidates through an HTTP API.
-2. **Adapt and redeploy:** respond to carbon intensity, resource pressure and queue delay by changing mode and worker deployment.
-3. **Recover missed events:** reprocess eco-period recordings when cleaner electricity and spare capacity are available; revise existing events without duplicates.
-4. **Replay and evaluate:** compare modes against EMSC using identical recordings, including noise-only periods; recover safely from interrupted jobs.
+1. **Detect earthquakes** in near real time and show them through an HTTP API and Grafana.
+2. **Switch processing profile** when the carbon intensity or the backlog changes.
+3. **Back-fill eco periods**: when the grid is clean again, re-check the data from eco periods with EQTransformer to find small earthquakes that were missed.
+4. **Evaluate** each profile against EMSC on the same replayed data.
 
-**Targets:** detect each magnitude ≥ 3 reference event within 60 seconds of origin time in the declared test region, in every mode; sustain ingestion without growing live queues. Validate these targets through replay and report misses, precision, recall and latency. Pin inputs, models and configuration for reproducibility.
+**Targets (SLOs):** an earthquake of magnitude 3 or more is saved within 60 seconds of the first P wave reaching a station, in every profile. The Kafka lag of the live pickers must not keep growing.
 
-## Components and architecture decisions
+## Components
 
-**Ingestor → RabbitMQ → picker workers → associator → event database/API.** RabbitMQ is a message broker: it buffers and delivers work between services. Use separate live/background queues; keep waveform files in persistent storage and jobs, policies, picks and events in PostgreSQL. Persist pending publications, acknowledge completed work and deduplicate retries. These choices support recovery but add operational overhead.
+**Ingestor → Kafka `waveforms` → picker → Kafka `picks` → associator → PostgreSQL → results API.**
 
-A **resource/carbon controller** reads simulated carbon intensity, Prometheus metrics and Kubernetes capacity. It selects versioned processing policies and predefined CPU/memory/GPU deployment profiles, scales workers, and requests rolling redeployments through the Kubernetes API. Give it permissions only for managed workloads. Use cooldowns, readiness checks and controller-triggered rollback on failed rollouts; preserve live capacity and pause background work first. Redeployment cannot create missing hardware; report degraded service when capacity is insufficient.
+- **Kafka** moves the data between services and keeps the waveforms for 7 days. Because Kafka keeps messages after they are read, the back-fill job can simply re-read an eco period. We do not need a separate waveform archive.
+- **PostgreSQL** stores the results: earthquakes, the history of mode changes, and evaluation scores. Each earthquake has a unique key, so a repeated message cannot create a duplicate.
+- **Picker profiles** are three Kubernetes Deployments in the same Kafka consumer group. Only one is scaled up at a time. When the profile changes, Kafka hands the stations over to the new pods, so no window is lost.
+- The **carbon controller** reads a simulated carbon signal (a scenario file) and the Kafka lag from Prometheus every 30 seconds. It chooses a profile, scales the Deployments through the Kubernetes API, and starts a back-fill Job when the grid is clean. If the lag keeps growing, it steps up one profile even when the grid is dirty.
 
-## GitHub CI/CD and monitoring
+## CI/CD and monitoring
 
-**Proposed GitHub Actions workflow:** pull request → lint/unit tests → replay/retry integration tests → image build. Merge to main → publish a commit-tagged image to GitHub Container Registry → deploy through a trusted self-hosted runner with local-cluster access → readiness/replay smoke test → restore the previous image if validation fails. Run untrusted pull-request jobs separately from deployment credentials.
+- **GitHub Actions:** on every pull request, run linting and unit tests, then a short replay test on a kind cluster inside the job, then build the images. On merge to `main`, push the images to GitHub Container Registry and deploy to the local cluster.
+- **Prometheus** scrapes `/metrics` from every service: latency, Kafka lag, active profile, CPU and memory. **Grafana** shows the dashboards and alerts when the lag grows or a station stops sending data.
 
-**Prometheus** collects service/exporter metrics; **Grafana** displays them and alerts on excessive queue age, missing stations, detection delays and failed rollouts. Monitor CPU/RAM/GPU usage, throughput, errors, active mode and deferred-work age.
+## Carbon metrics
 
-**Carbon metrics:** export CodeCarbon energy estimates (kWh), carbon intensity (gCO2e/kWh), and calculated emissions (`Σ interval kWh × intensity`). Include idle time and reprocessing; avoid double-counting shared hardware. Report energy/emissions per fixed input station-hour and per unique matched earthquake; label simulated emissions separately from real-grid estimates.
+CodeCarbon runs inside every picker and the back-fill job and estimates their energy use (kWh). We multiply this by the carbon intensity of the scenario (gCO₂/kWh) to get emissions. We report energy and gCO₂e per station-hour and per detected earthquake, including idle time and back-fill. Inside containers CodeCarbon can only estimate energy, so we compare profiles with each other rather than claiming exact numbers.
 
 ## UML diagrams
 
-Expand to view rendered diagrams; editable PlantUML sources are linked below each image.
+**Class diagram**
 
-<details>
-<summary>Component diagram — components and interfaces</summary>
+![QuakeShift class diagram](docs/architecture/class.svg)
 
-![QuakeShift component diagram](docs/architecture/components.svg)
+**Sequence diagram — live detection**
 
-[PlantUML source](docs/architecture/components.puml)
+![Live detection](docs/architecture/seq-detection.svg)
 
-</details>
+**Sequence diagram — carbon-aware mode switch**
 
-<details>
-<summary>Sequence diagram — detection, adaptation and reprocessing</summary>
+![Mode switch](docs/architecture/seq-mode-switch.svg)
 
-![QuakeShift sequence diagram](docs/architecture/sequence.svg)
+**Sequence diagram — green back-fill**
 
-[PlantUML source](docs/architecture/sequence.puml)
+![Back-fill](docs/architecture/seq-backfill.svg)
 
-</details>
+**Use-case diagram**
 
-<details>
-<summary>Use-case diagram</summary>
+![Use cases](docs/architecture/use-cases.svg)
 
-![QuakeShift use-case diagram](docs/architecture/use-cases.svg)
-
-[PlantUML source](docs/architecture/use-cases.puml)
-
-</details>
-
-[Diagram viewing instructions and technical references](docs/architecture/README.md)
-
-[Architecture choices and alternatives](ARCHITECTURE_COMPARISON.md) · [Project checklist](CHECKLIST.md)
+[How to edit the diagrams](docs/architecture/README.md) · [Architecture choices and alternatives](ARCHITECTURE_COMPARISON.md) · [Project checklist](CHECKLIST.md)

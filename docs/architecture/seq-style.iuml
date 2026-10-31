@@ -1,0 +1,24 @@
+' Extra look for sequence diagrams (use after style.iuml)
+skinparam SequenceMessageAlign center
+skinparam SequenceArrowThickness 1.3
+skinparam SequenceLifeLineBorderColor #9CA3AF
+skinparam SequenceLifeLineBackgroundColor #F3F4F6
+skinparam SequenceGroupBorderColor #9CA3AF
+skinparam SequenceGroupBackgroundColor #F9FAFB
+skinparam SequenceGroupHeaderFontStyle bold
+skinparam SequenceDividerBackgroundColor #F3F4F6
+skinparam SequenceDividerBorderColor #D1D5DB
+skinparam SequenceReferenceBackgroundColor #F9FAFB
+skinparam ParticipantPadding 14
+skinparam ArrowFontSize 13
+skinparam ParticipantFontSize 14
+skinparam NoteFontSize 12
+skinparam BoxPadding 8
+skinparam ParticipantFontStyle bold
+skinparam ParticipantBorderThickness 1.3
+skinparam DatabaseBorderThickness 1.3
+skinparam QueueBorderThickness 1.3
+skinparam ActorBorderColor #6B7280
+skinparam ActorBackgroundColor #F3F4F6
+skinparam footbox hide
+autonumber "<b>0."

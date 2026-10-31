@@ -1,0 +1,71 @@
+@startuml class
+!include style.iuml
+!pragma layout smetana
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+skinparam classFontSize 15
+skinparam classAttributeFontSize 13
+skinparam classBorderThickness 1.4
+skinparam ArrowFontSize 12
+skinparam nodesep 50
+skinparam ranksep 60
+skinparam circledCharacterRadius 10
+hide empty members
+
+title QuakeShift – class diagram
+
+class Ingestor #$pipeline;line:$pipelineLine {
+  + run()
+}
+class Associator #$pipeline;line:$pipelineLine {
+  min_stations = 3
+  + add(pick)
+}
+interface Picker #$pipeline;line:$pipelineLine {
+  + pick(window): list<Pick>
+}
+class PhaseNetPicker #$pipeline;line:$pipelineLine
+class EQTransformerPicker #$pipeline;line:$pipelineLine
+class EcoPicker #$pipeline;line:$pipelineLine {
+  sta_lta_threshold
+  core_stations
+}
+
+class WaveformWindow #$store;line:$storeLine {
+  station
+  start_time
+  samples
+}
+class Pick #$store;line:$storeLine {
+  station
+  phase: P or S
+  time
+}
+class Event #$store;line:$storeLine {
+  origin_time
+  station_count
+}
+
+class CarbonController #$control;line:$controlLine {
+  + step()
+}
+enum Profile #$control;line:$controlLine {
+  ECO
+  BALANCED
+  PERFORMANCE
+}
+
+Ingestor ..> WaveformWindow : creates
+WaveformWindow <.. Picker : reads
+Picker <|.. PhaseNetPicker
+Picker <|.. EQTransformerPicker
+Picker <|.. EcoPicker
+EcoPicker o-- PhaseNetPicker : uses
+Picker ..> Pick : creates
+Pick <.. Associator : reads
+Associator ..> Event : creates
+Event "1" o-- "3..*" Pick
+
+CarbonController ..> Profile : chooses
+CarbonController ..> Picker : switches
+@enduml

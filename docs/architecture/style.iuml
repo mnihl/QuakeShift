@@ -1,0 +1,36 @@
+' Shared look for all QuakeShift diagrams
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam defaultFontColor #1F2937
+skinparam ArrowColor #4B5563
+skinparam ArrowFontSize 11
+skinparam ArrowFontColor #374151
+skinparam ArrowThickness 1.2
+skinparam TitleFontSize 18
+skinparam TitleFontStyle bold
+skinparam NoteBackgroundColor #FFFBEB
+skinparam NoteBorderColor #D6A84E
+skinparam NoteFontSize 11
+skinparam PackageBorderColor #9CA3AF
+skinparam PackageFontStyle bold
+skinparam PackageFontColor #374151
+skinparam RectangleBorderColor #9CA3AF
+skinparam RectangleFontStyle bold
+skinparam LegendBackgroundColor #F9FAFB
+skinparam LegendBorderColor #D1D5DB
+skinparam LegendFontSize 11
+
+' Colours by role
+!$pipeline = "DBEAFE"
+!$pipelineLine = "2563EB"
+!$store = "FEF3C7"
+!$storeLine = "B45309"
+!$control = "DCFCE7"
+!$controlLine = "15803D"
+!$observe = "EDE9FE"
+!$observeLine = "6D28D9"
+!$external = "F3F4F6"
+!$externalLine = "6B7280"

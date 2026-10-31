@@ -1,0 +1,24 @@
+@startuml seq-detection
+!include style.iuml
+!include seq-style.iuml
+
+title Live detection
+
+participant "Ingestor" as ing #$pipeline
+queue "Kafka" as k #$store
+participant "Live picker" as pk #$pipeline
+participant "Associator" as as #$pipeline
+database "PostgreSQL" as db #$store
+
+ing -> k : 30 s waveform window
+k -> pk : window
+pk -> pk : run model of active profile
+pk -> k : picks (P/S arrival times)
+k -> as : picks
+as -> as : 3 or more stations\nwithin 10 s?
+opt yes
+  as -> db : save earthquake
+end
+
+note over ing, db : SLO: earthquake saved within 60 s of the first P wave
+@enduml
