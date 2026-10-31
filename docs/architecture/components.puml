@@ -1,0 +1,68 @@
+@startuml
+!pragma layout smetana
+left to right direction
+skinparam componentStyle uml2
+skinparam shadowing false
+skinparam linetype ortho
+skinparam defaultFontName Arial
+title QuakeShift: proposed components and interfaces
+
+component "GEOFON / replay files" as Source <<external>>
+component "EMSC catalogue" as EMSC <<external>>
+actor Researcher
+package "Detection pipeline" {
+  component "Ingestor / replay adapter" as Ingest
+  component "RabbitMQ\nlive + background jobs; picks" as Broker
+  component "Picker workers\nSTA/LTA / PhaseNet / EQTransformer" as Pick
+  component "Associator\nspatial + temporal matching" as Assoc
+  component "Results API" as API
+  component "Evaluation job" as Eval
+}
+package "Persistence" {
+  database "PostgreSQL\njobs, policies, picks, events" as DB
+  folder "Waveform archive" as Raw
+}
+package "Adaptation and operations" {
+  component "Resource / carbon controller" as Control
+  component "Kubernetes API" as Kube <<platform>>
+  component "Carbon simulator" as Carbon
+  component "Prometheus" as Prom
+  component "Grafana" as Grafana
+  component "Service / resource exporters\n+ CodeCarbon measurement adapter" as Metrics
+}
+
+Source --> Ingest : SeedLink stream / file replay
+Ingest --> Raw : file I/O: waveform windows
+Ingest --> DB : SQL: jobs + pending publications
+Ingest --> Broker : AMQP: job messages
+Broker --> Pick : AMQP: live / background jobs
+Pick --> Raw : file I/O: read waveforms
+Pick --> DB : SQL: policy, picks, progress
+Pick --> Broker : AMQP: arrival picks
+Broker --> Assoc : AMQP: picks
+Assoc --> DB : SQL: event revisions
+API --> DB : SQL: event queries
+Researcher --> API : HTTP/JSON: GET /events
+EMSC --> Eval : HTTP: catalogue snapshot
+Eval --> API : HTTP/JSON: detected events
+Eval --> DB : SQL: evaluation metrics
+Carbon --> Control : timestamped intensity samples
+Control --> DB : SQL: policy / deferred jobs
+Control --> Broker : AMQP: background jobs
+Control --> Prom : HTTP/PromQL: lag + usage
+Control --> Kube : HTTPS: capacity, scale, rollout, rollback
+Kube ..> Pick : manages worker pods
+Prom --> Metrics : HTTP: GET /metrics
+Grafana --> Prom : HTTP/PromQL: dashboards + alerts
+
+note bottom of Broker
+  Job: run/station/window IDs, waveform URI,
+  model + policy version, live/background class.
+  Pick: station, arrival time, P/S, confidence,
+  model + job ID. Consumers acknowledge work.
+end note
+note bottom of Metrics
+  Collect from services, broker and cluster;
+  export energy and scenario carbon metrics.
+end note
+@enduml

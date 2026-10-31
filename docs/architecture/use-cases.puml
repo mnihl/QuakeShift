@@ -1,0 +1,26 @@
+@startuml
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+title QuakeShift: use cases
+actor Researcher
+actor "Waveform provider" as Source
+actor "Carbon / resource\nproviders" as Signals
+actor "Kubernetes platform" as Kube
+actor "EMSC catalogue" as EMSC
+rectangle QuakeShift {
+  usecase "Detect and inspect\nearthquake candidates" as Detect
+  usecase "Adapt processing\nand redeploy workers" as Adapt
+  usecase "Reprocess deferred\nrecordings" as Backfill
+  usecase "Replay and evaluate\ndetection and carbon cost" as Eval
+}
+Researcher -- Detect
+Source -- Detect
+Signals -- Adapt
+Kube -- Adapt
+Signals -- Backfill
+Researcher -- Eval
+EMSC -- Eval
+Eval ..> Detect : <<include>>
+@enduml
