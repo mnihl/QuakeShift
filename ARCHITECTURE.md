@@ -70,3 +70,5 @@ Expand to view rendered diagrams; editable PlantUML sources are linked below eac
 </details>
 
 [Diagram viewing instructions and technical references](docs/architecture/README.md)
+
+[Architecture choices and alternatives](ARCHITECTURE_COMPARISON.md) · [Project checklist](CHECKLIST.md)
