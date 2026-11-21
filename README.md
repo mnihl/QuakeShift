@@ -1,26 +1,27 @@
 # QuakeShift
 
-QuakeShift is a **carbon-aware earthquake detection project** for *AI Architecture & Cloud Computing*. The planned system uses pretrained models on open European seismometer data, adjusts processing to the electricity grid's carbon intensity, and re-checks recordings from eco periods when cleaner electricity is available.
+QuakeShift is a **carbon-aware earthquake detection system** for *AI Architecture & Cloud Computing*. It runs pretrained seismic models on open European seismometer data, adapts processing profiles and replica counts to the electricity grid's carbon intensity and latency SLOs, and time-shifts back-fill of eco periods into cleaner grid windows.
 
-**Current status:** architecture documents, diagrams, nine architecture decision records (ADRs) and the repository/team PDF are prepared. The architecture review identified open issues tracked in the [checklist](CHECKLIST.md#before-implementation). Application services, tests, deployment manifests and CI/CD are not implemented yet.
+**Repository:** <https://github.com/mnihl/QuakeShift>
 
-The documented baseline is **CPU-only Docker containers on local Kubernetes**, with no model training. The planned pipeline is:
+**Current status:** Architecture baseline, nine ADRs, shared interface contracts ([CONTRACTS.md](CONTRACTS.md)), and the execution checklist ([CHECKLIST.md](CHECKLIST.md)) are in place. Next up: track assignment, UML/ADR updates from Assignment 1 feedback, and parallel implementation of Track A and Track B.
 
-`GEOFON / replay → ingestor → Kafka → picker → Kafka → associator → PostgreSQL → results API`
+The baseline runs **CPU-only Docker containers on local Kubernetes (`kind`)**, with no model training:
 
-Pickers mark P- and S-wave arrival times at each station; the associator combines picks across stations into earthquake candidates. See the [architecture](ARCHITECTURE.md) for the processing profiles and quality targets, which still need validation.
+`GEOFON replay → ingestor → Kafka → picker → Kafka → associator → PostgreSQL → results API`
+
+Pickers mark P- and S-wave arrival times per station; the associator combines picks across stations into deduplicated earthquake events. A carbon controller switches picker profiles, scales replicas under lag, boosts sensitivity for aftershocks, and schedules green back-fill Jobs.
 
 ## Documentation
 
-- [Project checklist](CHECKLIST.md): completed work, open review items and implementation milestones
-- [Architecture](ARCHITECTURE.md): specification, use cases, components and rendered UML diagrams
-- [Architecture decisions (ADRs)](ARCHITECTURE.md#4-architecture-decisions): current choices, alternatives and trade-offs; these replace the earlier comparison table
-- [Diagram sources and editing guide](docs/architecture/README.md): PlantUML sources, SVG previews and export instructions
-- [Local vs server deployment](DEPLOYMENT_COMPARISON.md): deployment trade-offs and the local-first recommendation
-- [Original project intent (PDF)](QuakeShift-intent-final.pdf): the initial proposal; use the architecture and ADRs for the current design
-- [Repository and team (PDF)](output/pdf/QuakeShift-repository-and-team.pdf): clickable repository URL and team names, prepared for the first checkpoint
+- [Project checklist](CHECKLIST.md): team decisions, Track A / Track B deliverables, and presentation milestones
+- [Interface contracts](CONTRACTS.md): Kafka topics/schemas, PostgreSQL DDL, HTTP APIs, K8s conventions, and latency/deduplication definitions
+- [Architecture](ARCHITECTURE.md): specification, use cases, components, and diagrams *(updates tracked in checklist)*
+- [Architecture decisions (ADRs)](ARCHITECTURE.md#4-architecture-decisions): design choices, alternatives, and sustainability trade-offs
+- [Diagram editing guide](docs/architecture/README.md): PlantUML sources and SVG export instructions
+- [Local vs server deployment](DEPLOYMENT_COMPARISON.md): deployment trade-offs and the local-first rationale
 
 ## Team members
 
-- Cristian Vortolomei (cristianvortolomei)
-- Morgan Nihlmar (mnihl)
+- Morgan Nihlmar (`mnihl`)
+- Cristian Vortolomei (`cristianvortolomei`)

@@ -87,7 +87,7 @@ Targets are a first draft; we check them on replayed data.
 
 **Live detection (UC1)**
 
-![Live detection](docs/architecture/seq-detection.svg)
+*The linear happy-path diagram for UC1 was removed following architecture review; it is being replaced by a Picker Crash & Deduplicated Redelivery sequence diagram (see [CHECKLIST.md](CHECKLIST.md)).*
 
 **Carbon-aware profile switch (UC2)**
 

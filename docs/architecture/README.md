@@ -5,7 +5,6 @@
 | Architecture overview | `overview.svg` (hand-drawn SVG, edit the file directly) | `overview.svg` |
 | Component diagram | `components.puml` | `components.svg` |
 | Class diagram | `class.puml` | `class.svg` |
-| Sequence: live detection | `seq-detection.puml` | `seq-detection.svg` |
 | Sequence: mode switch | `seq-mode-switch.puml` | `seq-mode-switch.svg` |
 | Sequence: back-fill | `seq-backfill.puml` | `seq-backfill.svg` |
 | Use cases | `use-cases.puml` | `use-cases.svg` |
