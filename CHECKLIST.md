@@ -36,8 +36,9 @@
 - [ ] `ingestor`: replays recorded GEOFON waveforms with overlapping windows, idempotent Kafka producer, latency header timestamps, `/health`, `/ready`, `/metrics`.
 - [ ] `pickers` + `backfill-job`: single configurable Python package supporting `eco` (STA/LTA + PhaseNet on core stations), `balanced` (PhaseNet), `performance` (EQTransformer), and `backfill` batch seek mode; `/health`, `/ready`, `/metrics`.
 - [ ] `associator`: regional association rule, pick-level (±0.5 s) and event-level (PostgreSQL GiST exclusion upsert) deduplication, manual Kafka offset commit after DB write, `/health`, `/ready`, `/metrics`.
-- [ ] `results-api` + minimal HTML/JS operator page: `GET /events`, `GET /history/profiles`, `GET /report/carbon` (counterfactual vs. always-performance / always-eco), and UI controls calling `carbon-controller` override/threshold endpoints.
+- [ ] `results-api` + minimal HTML/JS operator page: `GET /events`, `GET /history/profiles`, `GET /report/carbon` (counterfactual emissions, recall, and estimated cloud compute cost vs. always-performance / always-eco), and UI controls calling `carbon-controller` override/threshold endpoints.
 - [ ] `evaluator`: compares detected events against EMSC (recall, precision, detection delay, eco vs. back-fill recovery) and exports Prometheus metrics.
+- [ ] Emit structured JSON logs (`timestamp`, `service`, `profile`, `window_id`/`event_id`) to stdout across all Track A services.
 - [ ] Dockerfiles + unit tests (`pytest`) for deduplication, association, pickers, and API.
 
 ---
@@ -50,7 +51,7 @@
 - [ ] Create new **UML Deployment Diagram** (`deployment.puml` / `.svg`, monochrome): host → `kind` cluster → `quakeshift` namespace, `picker-eco/balanced/performance` Deployments, Kafka & Postgres StatefulSets, Back-fill Job, container artifacts.
 - [ ] Fix [seq-mode-switch.puml](docs/architecture/seq-mode-switch.puml): monochrome, cover **low, medium, and high** carbon bands in an `alt` fragment, include lag read, cooldown/hysteresis, readiness wait, and failure/rollback branch.
 - [ ] Fix [seq-backfill.puml](docs/architecture/seq-backfill.puml): monochrome, include forecast-based scheduling, Kafka consumer polling (not push), and updating `backfill_periods` in PostgreSQL.
-- [ ] Update [ADR-004](docs/adr/004-profile-switch-by-scaling.md), [ADR-005](docs/adr/005-carbon-controller.md) (fix SLO guard direction + replica scaling + aftershock boost), [ADR-006](docs/adr/006-green-backfill.md) (forecast & deadline tracking), [ADR-008](docs/adr/008-measurement-and-monitoring.md) (host CodeCarbon + per-pod CPU attribution + accounting boundary), and [ADR-009](docs/adr/009-ci-cd.md) (chaos pod-kill test).
+- [ ] Update [ADR-004](docs/adr/004-profile-switch-by-scaling.md), [ADR-005](docs/adr/005-carbon-controller.md) (fix SLO guard direction + replica scaling + aftershock boost), [ADR-006](docs/adr/006-green-backfill.md) (forecast & deadline tracking), [ADR-007](docs/adr/007-local-kubernetes-cpu.md) (explicitly justify containers over serverless and cloud region vs. grid intensity), [ADR-008](docs/adr/008-measurement-and-monitoring.md) (host CodeCarbon + per-pod CPU attribution + accounting boundary), and [ADR-009](docs/adr/009-ci-cd.md) (chaos pod-kill test).
 
 ### Implementation & ops
 - [ ] `kind` cluster config + Kubernetes manifests (`k8s/`): Kafka (KRaft) & Postgres StatefulSets, 3 picker Deployments with readiness probes, Back-fill Job template, RBAC for `carbon-controller`, Prometheus & Grafana.
@@ -62,7 +63,8 @@
   - [ ] **Aftershock boost:** temporary 10-minute `performance` override after a detected live earthquake.
   - [ ] **Forecast & deadline-aware back-fill scheduling:** schedule back-fill Job into cleanest forecast window before Kafka retention expires.
   - [ ] Operator REST endpoints: `GET /status`, `POST /override`, `DELETE /override`, `PUT /thresholds`.
-- [ ] **Host energy accounting & dashboards:** host-side CodeCarbon Prometheus exporter + per-pod energy attribution via cAdvisor CPU seconds; Grafana dashboards (cluster vs. picker energy, latency SLO, Kafka lag, profile switches, recall/precision).
+- [ ] **Host energy accounting & dashboards:** host-side CodeCarbon Prometheus exporter + per-pod energy attribution via cAdvisor CPU seconds; Grafana dashboards with separate panels for **system health & energy** (cluster vs. picker energy, latency SLO, Kafka lag, profile switches) and **AI behavior** (pick rate by phase, confidence distribution, recall/precision per profile, back-fill recovery).
+- [ ] Emit structured JSON logs (`timestamp`, `service`, `profile`, `reason`) to stdout across Track B services.
 - [ ] **CI/CD (GitHub Actions):** lint + unit tests, `kind` replay test with **mid-replay picker pod-kill chaos test** (assert zero lost/duplicate events), and GHCR container builds on `main`.
 
 ---
@@ -71,6 +73,6 @@
 
 - [ ] Integrate Track A's real Docker images into Track B's `kind` manifests and remove the mock picker.
 - [ ] Update [ARCHITECTURE.md](ARCHITECTURE.md) and `overview.svg` (with explicit color legend) to match the final implemented system.
-- [ ] Run controlled replay experiments comparing **always-performance**, **always-eco**, and **carbon-aware + back-fill** (measure recall, pipeline latency p95, full-cluster vs. picker-only kWh and gCO₂e).
-- [ ] Write the final report (architecture, ADRs, UML, sustainability trade-offs, energy accounting boundary, experiment results).
+- [ ] Run controlled replay experiments comparing **always-performance**, **always-eco**, and **carbon-aware + back-fill** (measure recall, pipeline latency p95, full-cluster vs. picker-only kWh, gCO₂e, and estimated compute cost).
+- [ ] Write the final report (architecture, ADRs, UML, sustainability trade-offs covering efficiency, carbon footprint, and cost, energy accounting boundary, experiment results).
 - [ ] Rehearse the 15-minute presentation and Q&A across **both** tracks so either teammate can explain any component or code block.
