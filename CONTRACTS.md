@@ -1,6 +1,6 @@
 # QuakeShift — Shared Interface Contracts
 
-This document defines the exact boundaries between **Track A** (seismic pipeline, results API, evaluator) and **Track B** (Kubernetes platform, carbon signal, carbon controller, energy accounting, CI/CD). Both tracks build against these contracts so they can develop and test independently, then integrate without rework.
+This document defines the exact boundaries between **Track A** (Kafka infra, ingestor, ML pickers & back-fill image, results API, evaluator, Grafana setup & AI dashboard) and **Track B** (PostgreSQL infra, associator, carbon signal, carbon controller, Prometheus setup, host energy accounting & system dashboard, CI/CD). Both tracks build against these contracts so both teammates work across Kubernetes, Kafka, Prometheus, and Grafana independently and integrate without rework.
 
 > **Status:** Draft — both teammates should review and sign off before writing service code (see [CHECKLIST.md](CHECKLIST.md)).
 
@@ -194,11 +194,16 @@ All Python services read configuration exclusively from environment variables so
 | `KAFKA_BOOTSTRAP` | `localhost:9092` | `kafka.quakeshift.svc:9092` | ingestor, pickers, backfill, associator |
 | `POSTGRES_DSN` | `postgresql://quakeshift:quakeshift@localhost:5432/quakeshift` | `postgresql://...@postgres.quakeshift.svc:5432/quakeshift` | associator, results-api, carbon-controller |
 | `PICKER_PROFILE` | `balanced` | `eco` / `balanced` / `performance` | pickers |
+| `BACKFILL_START` / `BACKFILL_END` | `2024-05-01T10:00:00Z` | Job env (set by controller) | backfill-job |
 | `CORE_STATIONS` | `GE.APE,GE.SANT,GE.ISP` | ConfigMap | pickers (`eco`) |
 | `CARBON_SIGNAL_URL` | `http://localhost:8001` | `http://carbon-signal.quakeshift.svc:8001` | carbon-controller |
 | `CONTROLLER_URL` | `http://localhost:8002` | `http://carbon-controller.quakeshift.svc:8002` | results-api |
 | `PROMETHEUS_URL` | `http://localhost:9090` | `http://prometheus.quakeshift.svc:9090` | carbon-controller, results-api |
 | `METRICS_PORT` | `9100` | `9100` | all services |
+
+### Observability & Dashboard Conventions
+- **Prometheus pod discovery:** every service pod includes standard scrape annotations (`prometheus.io/scrape: "true"`, `prometheus.io/port: "9100"`, `prometheus.io/path: "/metrics"`) so Track B's Prometheus scrapes services from both tracks automatically.
+- **Grafana dashboards as code:** both tracks commit provisioned dashboard JSON files under `monitoring/grafana/dashboards/` (`ai-pipeline.json` by Track A, `system-energy.json` by Track B), loaded automatically by Track A's Grafana manifests.
 
 ### Required Prometheus Metric Names
 - `quakeshift_pipeline_latency_seconds` (Histogram, labels: `stage`, `profile`)
