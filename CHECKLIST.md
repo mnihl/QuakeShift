@@ -9,7 +9,9 @@ Use this as one shared list. Either teammate can pick up any unchecked item. Dis
 ## 1. Agree on the basics
 
 - [ ] Verify that both commit emails are linked to GitHub. Use feature branches and pull requests, with a teammate review before merging to `main`.
-- [ ] Choose 5–10 nearby European stations and 1–2 recorded earthquakes of magnitude 3 or higher. Commit the GEOFON replay download script and the matching EMSC reference CSV. Check that the three-station rule can trigger on the chosen data.
+- [x] Choose 5–10 nearby European stations and 1–2 recorded earthquakes of magnitude 3 or higher. Commit the GEOFON replay download script and the matching EMSC reference CSV. Check that the three-station rule can trigger on the chosen data.
+  - Use the magnitude 4.6 Umbertide earthquake of 9 March 2023. Run `python scripts/download_replay.py` for three minutes of three-channel, 100 Hz data from six INGV stations. [Download script](scripts/download_replay.py) · [EMSC reference CSV](data/replay/emsc_reference.csv)
+  - INGV's reviewed P arrivals for `IV.ATVO`, `IV.ATMI`, and `IV.ATFO` span 1.16 seconds. These are the suggested core stations for eco mode. The arrival check used INGV event `34297011`.
 - [ ] Run PhaseNet and EQTransformer on a laptop CPU. Measure the input window length, inference time, and RAM use. Update the window length in the contracts if needed.
 - [ ] Review and agree on the [interface contracts](CONTRACTS.md). Settle two points before building the pipeline.
   - [ ] **Latency.** Agree when the 60-second timer starts. The architecture starts it at the first P-wave arrival, while the contracts start it at the third station's pick. Record the start, end, and how p95 will be calculated.

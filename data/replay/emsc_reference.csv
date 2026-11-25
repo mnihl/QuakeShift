@@ -1,0 +1,2 @@
+event_id,origin_time_utc,latitude,longitude,depth_km,magnitude,magnitude_type,region,catalog
+20230309_0000266,2023-03-09T19:08:06.4Z,43.29,12.39,8.0,4.6,ml,CENTRAL ITALY,EMSC-RTS
