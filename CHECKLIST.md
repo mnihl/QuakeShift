@@ -10,8 +10,9 @@ Use this as one shared list. Either teammate can pick up any unchecked item. Dis
 
 - [ ] Verify that both commit emails are linked to GitHub. Use feature branches and pull requests, with a teammate review before merging to `main`.
 - [x] Choose 5–10 nearby European stations and 1–2 recorded earthquakes of magnitude 3 or higher. Commit the GEOFON replay download script and the matching EMSC reference CSV. Check that the three-station rule can trigger on the chosen data.
-  - Use the magnitude 4.6 Umbertide earthquake of 9 March 2023. Run `python scripts/download_replay.py` for three minutes of three-channel, 100 Hz data from six INGV stations. [Download script](scripts/download_replay.py) · [EMSC reference CSV](data/replay/emsc_reference.csv)
-  - INGV's reviewed P arrivals for `IV.ATVO`, `IV.ATMI`, and `IV.ATFO` span 1.16 seconds. These are the suggested core stations for eco mode. The arrival check used INGV event `34297011`.
+  - **Replay 1 · Umbertide.** Run `python scripts/download_replay.py` for the magnitude 4.6 event on 9 March 2023. The three-minute clip has three channels at 100 Hz from six INGV stations. Reviewed P arrivals for the eco stations `IV.ATVO`, `IV.ATMI`, and `IV.ATFO` span 1.16 seconds (INGV event `34297011`).
+  - **Replay 2 · Tyrol.** Run `python scripts/download_replay.py tyrol` for the magnitude 3.6 event near Gschnitz on 31 October 2024. The three-minute clip has three channels at 100 Hz from nine Austrian stations. EMSC P arrivals for the eco stations `OE.SQTA`, `OE.MOTA`, `OE.WATA`, and `OE.FETA` span 4.99 seconds.
+  - Use the EMSC row whose origin time falls inside the clip being evaluated. [Download script](scripts/download_replay.py) · [EMSC reference CSV](data/replay/emsc_reference.csv)
 - [ ] Run PhaseNet and EQTransformer on a laptop CPU. Measure the input window length, inference time, and RAM use. Update the window length in the contracts if needed.
 - [ ] Review and agree on the [interface contracts](CONTRACTS.md). Settle two points before building the pipeline.
   - [ ] **Latency.** Agree when the 60-second timer starts. The architecture starts it at the first P-wave arrival, while the contracts start it at the third station's pick. Record the start, end, and how p95 will be calculated.

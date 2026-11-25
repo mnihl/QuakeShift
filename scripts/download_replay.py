@@ -1,35 +1,55 @@
-"""Download the pinned Umbertide replay with GEOFON's EIDA routing service.
+"""Download a pinned replay with GEOFON's EIDA routing service.
 
-Run with python scripts/download_replay.py. The output goes to data/raw/.
-Waveforms: INGV Rete Sismica Nazionale, DOI 10.13127/SD/X0FXNH7QFY.
-Event reference: EMSC-RTS catalogue, event 20230309_0000266.
+Run with python scripts/download_replay.py for Umbertide, or add tyrol
+for the Austrian replay. The output goes to data/raw/.
+
+Umbertide waveforms: INGV Rete Sismica Nazionale, DOI 10.13127/SD/X0FXNH7QFY.
+Tyrol waveforms: GeoSphere Austria, Austrian Seismic Network, DOI 10.7914/SN/OE.
+Event references: data/replay/emsc_reference.csv, from the EMSC-RTS catalogue.
 
 The archive can include samples outside the requested interval. Trim to
-START_TIME and END_TIME (UTC) when preparing the replay windows.
+the selected clip's start and end times (UTC) when preparing replay windows.
 """
 
+import argparse
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 ROUTING_URL = "https://geofon.gfz.de/eidaws/routing/1/query"
-STATIONS = ("ATVO", "ATMI", "ATFO", "ATPC", "MURB", "APEC")
-START_TIME = "2023-03-09T19:07:06"
-END_TIME = "2023-03-09T19:10:06"
-OUTPUT = Path(__file__).resolve().parents[1] / "data/raw/umbertide_20230309.mseed"
+CLIPS = {
+    "umbertide": {
+        "network": "IV",
+        "stations": ("ATVO", "ATMI", "ATFO", "ATPC", "MURB", "APEC"),
+        "start_time": "2023-03-09T19:07:06",
+        "end_time": "2023-03-09T19:10:06",
+        "filename": "umbertide_20230309.mseed",
+    },
+    "tyrol": {
+        "network": "OE",
+        "stations": ("SQTA", "MOTA", "WATA", "WTTA", "FETA", "RETA", "DAVA", "ABTA", "LESA"),
+        "start_time": "2024-10-31T19:18:42",
+        "end_time": "2024-10-31T19:21:42",
+        "filename": "tyrol_20241031.mseed",
+    },
+}
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Download a QuakeShift replay.")
+    parser.add_argument("clip", choices=CLIPS, nargs="?", default="umbertide")
+    clip = CLIPS[parser.parse_args().clip]
+
     query = urlencode(
         {
             "service": "dataselect",
             "format": "post",
-            "network": "IV",
-            "station": ",".join(STATIONS),
+            "network": clip["network"],
+            "station": ",".join(clip["stations"]),
             "location": "--",
             "channel": "HH?",
-            "starttime": START_TIME,
-            "endtime": END_TIME,
+            "starttime": clip["start_time"],
+            "endtime": clip["end_time"],
         }
     )
     with urlopen(f"{ROUTING_URL}?{query}", timeout=30) as response:
@@ -49,9 +69,10 @@ def main():
         if not waveforms or response.headers.get_content_type() != "application/vnd.fdsn.mseed":
             raise SystemExit("The EIDA archive did not return MiniSEED waveforms.")
 
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_bytes(waveforms)
-    print(f"Saved {len(waveforms):,} bytes to {OUTPUT}")
+    output = Path(__file__).resolve().parents[1] / "data/raw" / clip["filename"]
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_bytes(waveforms)
+    print(f"Saved {len(waveforms):,} bytes to {output}")
 
 
 if __name__ == "__main__":
