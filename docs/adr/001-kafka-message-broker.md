@@ -10,7 +10,7 @@ Waveform windows and picks must move between the ingestor, pickers and associato
 
 Use **Apache Kafka** (one broker in KRaft mode, no ZooKeeper) with two topics:
 
-- `waveforms`: one message per 30 s window, key = station, kept for **7 days**
+- `waveforms`: one message keyed by station every 10 seconds, with the latest 60 seconds of data, kept for **7 days**
 - `picks`: P/S arrival times from all pickers
 
 ## Alternatives

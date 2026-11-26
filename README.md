@@ -4,9 +4,9 @@ QuakeShift is a **carbon-aware earthquake detection system** for *AI Architectur
 
 **Repository:** <https://github.com/mnihl/QuakeShift>
 
-**Current status:** Architecture baseline, nine ADRs, shared interface contracts ([CONTRACTS.md](CONTRACTS.md)), and the execution checklist ([CHECKLIST.md](CHECKLIST.md)) are in place. Next up: track assignment, UML/ADR updates from Assignment 1 feedback, and parallel implementation of Track A and Track B.
+**Current status.** The two replays and laptop CPU benchmark are ready. The models work with 60-second windows published every 10 seconds. The first build step is the local Kubernetes setup. [Project checklist](CHECKLIST.md)
 
-The baseline runs **CPU-only Docker containers on local Kubernetes (`kind`)**, with no model training:
+The planned pipeline uses **CPU-only containers on local Kubernetes (`kind`)** and pretrained models.
 
 `GEOFON replay → ingestor → Kafka → picker → Kafka → associator → PostgreSQL → results API`
 
@@ -14,7 +14,7 @@ Pickers mark P- and S-wave arrival times per station; the associator combines pi
 
 ## Documentation
 
-- [Project checklist](CHECKLIST.md): team decisions, Track A / Track B deliverables, and presentation milestones
+- [Project checklist](CHECKLIST.md) for shared tasks and presentation milestones
 - [Interface contracts](CONTRACTS.md): Kafka topics/schemas, PostgreSQL DDL, HTTP APIs, K8s conventions, and latency/deduplication definitions
 - [Architecture](ARCHITECTURE.md): specification, use cases, components, and diagrams *(updates tracked in checklist)*
 - [Architecture decisions (ADRs)](ARCHITECTURE.md#4-architecture-decisions): design choices, alternatives, and sustainability trade-offs

@@ -13,10 +13,23 @@ Use pretrained models from **SeisBench** and the classic **STA/LTA** trigger fro
 | Profile | What runs | Expected cost |
 | --- | --- | --- |
 | Performance | EQTransformer on all stations | highest |
-| Balanced | PhaseNet on all stations | medium (PhaseNet is roughly 2–3× faster than EQTransformer on CPU) |
+| Balanced | PhaseNet on all stations | medium |
 | Eco | STA/LTA on core stations; PhaseNet only on windows where STA/LTA fires | lowest |
 
 Tuning the STA/LTA threshold and choosing the core stations is configuration, not training.
+
+## CPU benchmark
+
+Intel Core i5-1235U laptop with four CPU threads, SeisBench 0.13.0, PyTorch 2.12.0 CPU, and INSTANCE version 2 weights. Times are the median of three warmed runs on each full three-minute clip with all stations and a batch size of 16. Peak RAM is the Windows process working set across both clips, including Python and the model.
+
+| Model | Samples per channel at 100 Hz | Umbertide (6 stations) | Tyrol (9 stations) | Peak RAM |
+| --- | ---: | ---: | ---: | ---: |
+| PhaseNet | 3,001 | 0.118 s | 0.149 s | 421 MiB |
+| EQTransformer | 6,000 | 0.303 s | 0.418 s | 431 MiB |
+
+Both models found all three reviewed core P arrivals at Umbertide and all four at Tyrol within one second of the reference picks. The first trailing window with enough matches ended about 7–8 seconds after the first reviewed core arrival on each replay.
+
+Publish the latest 60 seconds every 10 seconds. This fits EQTransformer, and SeisBench can run PhaseNet on shorter pieces of the same window. The full pipeline timing and the energy comparison are separate tests.
 
 ## Alternatives
 

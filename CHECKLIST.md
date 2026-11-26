@@ -8,15 +8,16 @@ Use this as one shared list. Either teammate can pick up any unchecked item. Dis
 
 ## 1. Agree on the basics
 
-- [ ] Verify that both commit emails are linked to GitHub. Use feature branches and pull requests, with a teammate review before merging to `main`.
+- [x] Verify that GitHub links the published commits to the expected accounts. Use feature branches and pull requests, with a teammate review before merging to `main`.
 - [x] Choose 5–10 nearby European stations and 1–2 recorded earthquakes of magnitude 3 or higher. Commit the GEOFON replay download script and the matching EMSC reference CSV. Check that the three-station rule can trigger on the chosen data.
   - **Replay 1 · Umbertide.** Run `python scripts/download_replay.py` for the magnitude 4.6 event on 9 March 2023. The three-minute clip has three channels at 100 Hz from six INGV stations. Reviewed P arrivals for the eco stations `IV.ATVO`, `IV.ATMI`, and `IV.ATFO` span 1.16 seconds (INGV event `34297011`).
   - **Replay 2 · Tyrol.** Run `python scripts/download_replay.py tyrol` for the magnitude 3.6 event near Gschnitz on 31 October 2024. The three-minute clip has three channels at 100 Hz from nine Austrian stations. EMSC P arrivals for the eco stations `OE.SQTA`, `OE.MOTA`, `OE.WATA`, and `OE.FETA` span 4.99 seconds.
   - Use the EMSC row whose origin time falls inside the clip being evaluated. [Download script](scripts/download_replay.py) · [EMSC reference CSV](data/replay/emsc_reference.csv)
-- [ ] Run PhaseNet and EQTransformer on a laptop CPU. Measure the input window length, inference time, and RAM use. Update the window length in the contracts if needed.
-- [ ] Review and agree on the [interface contracts](CONTRACTS.md). Settle two points before building the pipeline.
-  - [ ] **Latency.** Agree when the 60-second timer starts. The architecture starts it at the first P-wave arrival, while the contracts start it at the third station's pick. Record the start, end, and how p95 will be calculated.
-  - [ ] **Duplicate messages and events.** Agree how to handle repeated waveform windows, picks, and saved events. Make the event matching rule and PostgreSQL constraint agree. The draft rule checks shared stations and overlapping times, while the example SQL blocks all overlapping times.
+- [x] Benchmark PhaseNet and EQTransformer on the laptop CPU. Use 60-second windows published every 10 seconds.
+  - Both models found enough matching P waves in each replay. PhaseNet took 0.12–0.15 s per three-minute clip and peaked at 421 MiB of RAM. EQTransformer took 0.30–0.42 s and peaked at 431 MiB. [Benchmark details](docs/adr/003-three-processing-profiles.md#cpu-benchmark)
+- [x] Review the [interface contracts](CONTRACTS.md) with the confirmed window size.
+  - [x] **Latency.** Use first P arrival to first live database commit. Record the 60-second target and how to report timing.
+  - [x] **Duplicate messages and events.** Merge overlapping event ranges within one regional replay. Record how to handle repeated windows, picks, and back-fill updates.
 
 ## 2. Get one earthquake through the system
 
@@ -77,7 +78,7 @@ Use this as one shared list. Either teammate can pick up any unchecked item. Dis
 - [ ] Fix [seq-backfill.puml](docs/architecture/seq-backfill.puml). Show forecast scheduling, Kafka polling, and updates to `backfill_periods`.
 - [ ] Draw the crash and deduplication sequence. Show Kafka polling, a picker crashing mid-window, redelivery, and a database update that avoids creating a duplicate.
 - [ ] Render the UML diagrams in monochrome and re-export the SVGs.
-- [ ] Write **ADR-010** for latency, at-least-once delivery, and deduplication at all three levels. Update [ADR-002](docs/adr/002-postgresql-results-store.md) for the agreed database schema and event matching rule.
+- [x] Record the timing and duplicate rules in [ADR-010](docs/adr/010-latency-and-deduplication.md). Align [ADR-002](docs/adr/002-postgresql-results-store.md) with the agreed database schema and event matching rule.
 - [ ] Update [ADR-004](docs/adr/004-profile-switch-by-scaling.md) through [ADR-009](docs/adr/009-ci-cd.md) for mode switching and scaling, the aftershock boost, forecast and retention deadlines, containers versus serverless and region versus grid intensity, host energy accounting, and the picker crash test.
 - [ ] Update [ARCHITECTURE.md](ARCHITECTURE.md) and the [overview diagram](docs/architecture/overview.svg) to match the system that runs. Give the overview a clear color key.
 

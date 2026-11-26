@@ -8,7 +8,7 @@ Detected earthquakes and the history of profile changes must be stored so the AP
 
 ## Decision
 
-Use **PostgreSQL** with two tables: `events` (earthquakes) and `mode_changes` (time, profile, carbon intensity). Each event has a unique key (rounded origin time and region), and the associator writes with "insert or update". PostgreSQL stores **results only**: no jobs, no queues, no waveforms.
+Use **PostgreSQL** for `events`, `profile_changes`, and `backfill_periods`. Kafka keeps the waveform data. The associator merges overlapping detections within one regional run. Each event keeps its original detection source and records which source last updated it. [Database schema](../../CONTRACTS.md#3-postgresql-contract) · [Event matching](010-latency-and-deduplication.md)
 
 ## Alternatives
 
@@ -21,7 +21,7 @@ Use **PostgreSQL** with two tables: `events` (earthquakes) and `mode_changes` (t
 ## Consequences
 
 - ✅ SQL queries for the API and the evaluation.
-- ✅ The unique key makes repeated messages and back-fill re-runs safe.
+- ✅ The exclusion constraint keeps overlapping event rows out of the same result set.
 - ❌ One more stateful service to run, with a persistent volume.
 
 ## Sustainability

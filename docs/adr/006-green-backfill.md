@@ -15,7 +15,7 @@ When the grid is clean and the live lag is low, the carbon controller starts a K
 3. writes the picks to the `picks` topic, marked as `backfill`,
 4. marks the period as done in PostgreSQL.
 
-The associator adds missed earthquakes or updates existing ones. The unique event key prevents duplicates (ADR-002).
+The associator adds missed earthquakes or merges extra picks into overlapping events. It keeps the original timing and profile of live detections. [Event matching](010-latency-and-deduplication.md)
 
 ## Alternatives
 

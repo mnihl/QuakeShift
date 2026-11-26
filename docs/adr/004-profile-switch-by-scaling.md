@@ -26,7 +26,7 @@ Kafka automatically hands the stations (partitions) over to the new pods, starti
 
 ## Consequences
 
-- ✅ No window is lost or processed twice, thanks to committed offsets.
+- ✅ Pickers resume from the last committed offset. A switch can deliver some windows again, so the associator handles repeats. [Delivery rules](010-latency-and-deduplication.md)
 - ✅ Each profile has its own image settings and CPU/memory limits.
 - ✅ The switch is a real, visible Kubernetes redeployment for the demo.
 - ❌ For a few seconds both profiles run, until the old one is stopped.

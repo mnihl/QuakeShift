@@ -1,19 +1,19 @@
 # QuakeShift — Shared Interface Contracts
 
-This document defines the exact boundaries between **Track A** (Kafka infra, ingestor, ML pickers & back-fill image, results API, evaluator, Grafana setup & AI dashboard) and **Track B** (PostgreSQL infra, associator, carbon signal, carbon controller, Prometheus setup, host energy accounting & system dashboard, CI/CD). Both tracks build against these contracts so both teammates work across Kubernetes, Kafka, Prometheus, and Grafana independently and integrate without rework.
+This document defines the messages, database tables, endpoints, and settings shared by the services in the [project checklist](CHECKLIST.md).
 
-> **Status:** Draft — both teammates should review and sign off before writing service code (see [CHECKLIST.md](CHECKLIST.md)).
+> **Status.** Reviewed for the first local replay. The [project checklist](CHECKLIST.md) tracks the build and tests.
 
 ---
 
-## 1. Definitions Locked Across Both Tracks
+## 1. Timing and delivery
 
 ### Latency
-- **Pipeline latency (SLO):** `t_db_commit − t_trigger_sample`, where `t_trigger_sample` is the waveform timestamp of the latest pick that completed the event (3rd station) and `t_db_commit` is the PostgreSQL commit timestamp.
-  - **Target:** p95 ≤ 60 s over a 10-minute window, in every profile.
-  - **Stage breakdown:** timestamps travel in Kafka message headers (`t_ingested`, `t_picked`) so Prometheus histograms track windowing, Kafka queue, inference, association, and DB write latency separately.
-  - **Replay clock mapping:** replay runs at `1×` (or configurable `REPLAY_SPEED`) with timestamps shifted by a fixed offset so replay time aligns with wall-clock time during latency calculation.
-- **Detection delay (reported, not an SLO):** `t_db_commit − emsc_origin_time`. Includes seismic wave travel time; exported by the evaluator as a quality metric only.
+- **60-second target (N1).** Measure from the first P-wave arrival in the configured station set to the first successful database commit. Apply the target to each M ≥ 3 event in every profile.
+- **Replay check.** Run at `1×` and add `replay_offset_s` to the earliest reviewed P arrival. Use that same reference in every profile. Log the time PostgreSQL acknowledges the commit so the replay check can compare the two. Report missed events alongside the timings.
+- **Live measurements.** Subtract the earliest P arrival among the event's picks from the commit time. Apply the replay offset to the arrival first. Save the result in `events.pipeline_latency_s` and record it in the live histogram after the first live commit. Leave unavailable timings blank. Back-fill-only events have no live latency.
+- **Clock and stage measurements.** Keep the original timestamps in waveform messages and picks. Pass `replay_offset_s` from the waveform payload to the pick headers and use zero for a real-time station feed. Track the third-station-to-save time for debugging. Use `t_ingested` and `t_picked` to help trace buffering, Kafka, inference, association, and database time. Report EMSC origin-to-commit delay separately on the same clock.
+- **Reports.** Show individual timings for short replays. Calculate experiment median, p95, and maximum from the saved live samples by profile, with the sample count. Use the histogram for an estimated 10-minute dashboard p95 and show no data when there are no observations.
 
 ### Deduplication (3 Levels)
 Delivery is **at-least-once** across Kafka; consumers commit offsets **only after** their downstream write succeeds.
@@ -22,7 +22,13 @@ Delivery is **at-least-once** across Kafka; consumers commit offsets **only afte
 | --- | --- | --- |
 | **1. Waveform window** | Kafka key `"{network}.{station}"`, payload field `window_id = "{network}.{station}:{window_start_iso}"` | Idempotent Kafka producer (`enable.idempotence=true`). Reprocessing a window on crash or profile switch is expected and safe. |
 | **2. Pick** | Same `(station, phase)` with `pick_time` within **±0.5 s** | Associator merges matching picks inside its rolling window and keeps the highest `probability`. Covers redelivery, overlapping windows, and back-fill picks. |
-| **3. Event** | Overlapping time range (`event_window`) with shared contributing stations | Transactional PostgreSQL upsert guarded by a GiST exclusion constraint on `event_window`. Back-fill updates existing rows (merges picks, sets `updated_by = 'backfill'`) instead of inserting duplicates. |
+| **3. Event** | Overlapping time ranges (`event_window`) in a single regional run | Merge the picks and stations into the existing event, or insert a new event when there is no match. PostgreSQL's GiST exclusion constraint prevents overlapping rows. |
+
+Use one regional array and one replay run per result set. Start each independent comparison with fresh results. Form the half-open event range `[first_pick_time − 5 s, last_pick_time + 10 s)` using original waveform timestamps. Start with those padding values and test live and back-fill matches during replay. A time-only rule can merge two distinct earthquakes if their padded ranges overlap.
+
+1. In a transaction, look for an overlap using `SELECT ... FOR UPDATE`. Insert if there is no match. Flag matches with multiple saved events for review and leave those rows intact.
+2. For one match, merge stations and saved JSONB picks using the level 2 pick rule. Recalculate `station_count`, the first and last pick times, and `event_window`. Keep the original `source`, `detected_by_profile`, `pipeline_latency_s`, and `created_at`. Set `updated_by` and `updated_at` for the latest change.
+3. If a concurrent insert causes an exclusion violation, roll back and retry once in a fresh transaction. Acknowledge the Kafka offset after the write commits.
 
 ---
 
@@ -43,21 +49,21 @@ Delivery is **at-least-once** across Kafka; consumers commit offsets **only afte
 
 ### Message Schemas (JSON, UTF-8)
 
-**`waveforms` message** (overlapping windows: default 30 s length, 10 s step; adjust after SeisBench benchmark):
+**`waveforms` message.** Once the buffer fills, publish a trailing 60-second window every 10 seconds. Each channel contains 6,000 samples at 100 Hz, and `window_end` is exclusive. EQTransformer takes the full window, and SeisBench runs PhaseNet on shorter pieces of it. The example shows two sample values per channel. [CPU benchmark](docs/adr/003-three-processing-profiles.md#cpu-benchmark)
 ```json
 {
   "window_id": "GE.APE:2024-05-01T10:00:00Z",
   "station": "GE.APE",
   "sample_rate_hz": 100,
   "window_start": "2024-05-01T10:00:00.000Z",
-  "window_end": "2024-05-01T10:00:30.000Z",
+  "window_end": "2024-05-01T10:01:00.000Z",
   "channels": {
     "Z": [0.001, -0.002],
     "N": [0.0, 0.001],
     "E": [-0.001, 0.0]
   },
-  "ingested_at": "2026-11-21T12:00:00.120Z",
-  "replay_offset_s": 0.0
+  "ingested_at": "2024-05-08T10:01:00.120Z",
+  "replay_offset_s": 604800.0
 }
 ```
 
@@ -71,15 +77,16 @@ Delivery is **at-least-once** across Kafka; consumers commit offsets **only afte
   "pick_time": "2024-05-01T10:00:12.340Z",
   "probability": 0.91,
   "profile": "balanced",
-  "model_version": "phasenet-original-0.7",
+  "model_version": "phasenet-instance-v2",
   "source": "live",
-  "ingested_at": "2026-11-21T12:00:00.120Z",
-  "picked_at": "2026-11-21T12:00:01.450Z"
+  "ingested_at": "2024-05-08T10:01:00.120Z",
+  "picked_at": "2024-05-08T10:01:01.450Z"
 }
 ```
 - `phase`: `"P"` or `"S"`
 - `profile`: `"eco"` | `"balanced"` | `"performance"`
 - `source`: `"live"` | `"backfill"`
+- Use the tested INSTANCE version 2 weights for both pickers. Set `model_version` to `phasenet-instance-v2` or `eqtransformer-instance-v2`.
 
 ---
 
@@ -97,6 +104,7 @@ CREATE TABLE IF NOT EXISTS events (
     stations            TEXT[] NOT NULL,
     picks               JSONB NOT NULL,
     detected_by_profile TEXT NOT NULL CHECK (detected_by_profile IN ('eco', 'balanced', 'performance')),
+    source              TEXT NOT NULL CHECK (source IN ('live', 'backfill')),
     updated_by          TEXT NOT NULL CHECK (updated_by IN ('live', 'backfill')),
     pipeline_latency_s  DOUBLE PRECISION,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -130,7 +138,7 @@ CREATE TABLE IF NOT EXISTS backfill_periods (
 );
 ```
 
-- **Aftershock boost coupling (zero extra network call):** `carbon-controller` queries `events` on its polling loop (`WHERE created_at >= NOW() - INTERVAL '10 minutes' AND updated_by = 'live'`) to trigger or hold the aftershock performance override.
+- **Aftershock boost.** `carbon-controller` checks for events first detected live using `WHERE created_at >= NOW() - INTERVAL '10 minutes' AND source = 'live'`. This includes live events later updated by back-fill.
 
 ---
 
@@ -141,7 +149,7 @@ Every long-running HTTP service exposes:
 - `GET /ready` → `200 {"status": "ready"}` once models / Kafka / DB are initialized, else `503` (Kubernetes readiness probe — required for safe profile switches)
 - `GET /metrics` → Prometheus text format
 
-### `carbon-signal` (Track B · default port `8001`)
+### `carbon-signal` (default port `8001`)
 - `GET /intensity`
   ```json
   {
@@ -163,15 +171,15 @@ Every long-running HTTP service exposes:
   }
   ```
 
-### `carbon-controller` (Track B · default port `8002`)
+### `carbon-controller` (default port `8002`)
 - `GET /status` → current profile, active replicas, override state, aftershock-boost state, latest intensity, current lag, pending back-fill count.
 - `POST /override` — body: `{"profile": "performance", "duration_minutes": 30, "reason": "operator test"}`
 - `DELETE /override` — clears manual override and returns to carbon-governed mode.
 - `PUT /thresholds` — body: `{"low_max_gco2_kwh": 150, "high_min_gco2_kwh": 300, "cooldown_seconds": 180}`
 
-### `results-api` (Track A · default port `8000`)
+### `results-api` (default port `8000`)
 - `GET /` — minimal static HTML/JS operator & results page (shows events, carbon report, current controller status, and calls override/threshold controls).
-- `GET /events?since=&until=&profile=&source=` — list detected earthquakes from PostgreSQL.
+- `GET /events?since=&until=&profile=&source=` — list detected earthquakes from PostgreSQL. The source filter uses the first detection's `source`.
 - `GET /events/{id}` — single earthquake with contributing picks.
 - `GET /history/profiles` — profile switch log from `profile_changes`.
 - `GET /report/carbon` — counterfactual carbon savings report comparing actual emissions & recall against `always-performance` and `always-eco` baselines.
@@ -195,18 +203,20 @@ All Python services read configuration exclusively from environment variables so
 | `POSTGRES_DSN` | `postgresql://quakeshift:quakeshift@localhost:5432/quakeshift` | `postgresql://...@postgres.quakeshift.svc:5432/quakeshift` | associator, results-api, carbon-controller |
 | `PICKER_PROFILE` | `balanced` | `eco` / `balanced` / `performance` | pickers |
 | `BACKFILL_START` / `BACKFILL_END` | `2024-05-01T10:00:00Z` | Job env (set by controller) | backfill-job |
-| `CORE_STATIONS` | `GE.APE,GE.SANT,GE.ISP` | ConfigMap | pickers (`eco`) |
+| `CORE_STATIONS` | `IV.ATVO,IV.ATMI,IV.ATFO` | ConfigMap for the selected replay | pickers (`eco`) |
 | `CARBON_SIGNAL_URL` | `http://localhost:8001` | `http://carbon-signal.quakeshift.svc:8001` | carbon-controller |
 | `CONTROLLER_URL` | `http://localhost:8002` | `http://carbon-controller.quakeshift.svc:8002` | results-api |
 | `PROMETHEUS_URL` | `http://localhost:9090` | `http://prometheus.quakeshift.svc:9090` | carbon-controller, results-api |
 | `METRICS_PORT` | `9100` | `9100` | all services |
 
+For the Tyrol replay, use `OE.SQTA,OE.MOTA,OE.WATA,OE.FETA` for `CORE_STATIONS`.
+
 ### Observability & Dashboard Conventions
-- **Prometheus pod discovery:** every service pod includes standard scrape annotations (`prometheus.io/scrape: "true"`, `prometheus.io/port: "9100"`, `prometheus.io/path: "/metrics"`) so Track B's Prometheus scrapes services from both tracks automatically.
-- **Grafana dashboards as code:** both tracks commit provisioned dashboard JSON files under `monitoring/grafana/dashboards/` (`ai-pipeline.json` by Track A, `system-energy.json` by Track B), loaded automatically by Track A's Grafana manifests.
+- **Prometheus pod discovery.** Each service pod includes the scrape annotations `prometheus.io/scrape: "true"`, `prometheus.io/port: "9100"`, and `prometheus.io/path: "/metrics"`.
+- **Grafana dashboards.** Keep `ai-pipeline.json` and `system-energy.json` under `monitoring/grafana/dashboards/`. The Grafana manifests load both.
 
 ### Required Prometheus Metric Names
-- `quakeshift_pipeline_latency_seconds` (Histogram, labels: `stage`, `profile`)
+- `quakeshift_pipeline_latency_seconds` (Histogram, labels `stage` and `profile`, with finite buckets at 1, 2, 5, 10, 15, 20, 30, 45, 60, 90, and 120 s). Use `stage="end_to_end"` for first P arrival to first live commit, and `stage="after_third_station"` for the diagnostic.
 - `quakeshift_picks_total` (Counter, labels: `station`, `phase`, `profile`, `source`)
 - `quakeshift_events_total` (Counter, labels: `profile`, `source`)
 - `quakeshift_active_profile` (Gauge, label: `profile` — `1` for active, `0` otherwise)

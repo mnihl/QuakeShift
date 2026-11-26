@@ -40,7 +40,7 @@ Targets are a first draft; we check them on replayed data.
 
 | ID | Quality | Target | How we check it |
 | --- | --- | --- | --- |
-| N1 | Latency | An earthquake of magnitude ≥ 3 is saved within **60 s** of the first P wave reaching a station, in every profile. | Replay test, timestamps in Prometheus |
+| N1 | Latency | An earthquake of magnitude ≥ 3 is saved within **60 s** of the first P wave reaching a station, in every profile. | Compare the reviewed arrival with the first live database commit at 1× replay. See [timing and delivery](CONTRACTS.md#1-timing-and-delivery). |
 | N2 | Throughput | With 10 stations, the Kafka lag of the live pickers does not grow over 10 minutes. | Kafka lag metric |
 | N3 | Detection quality | Recall ≥ **90 %** for magnitude ≥ 3 in performance and balanced, ≥ **80 %** in eco. | Evaluator vs EMSC |
 | N4 | Energy efficiency | Eco uses at least **50 % less** energy per station-hour than performance. | CodeCarbon |
@@ -71,11 +71,11 @@ Targets are a first draft; we check them on replayed data.
 
 | Component | Responsibility |
 | --- | --- |
-| **Ingestor** | Reads GEOFON or replay files, cuts 30 s windows per station, writes them to Kafka. |
+| **Ingestor** | Reads GEOFON or replay files and sends the latest 60 seconds of data per station to Kafka every 10 seconds. |
 | **Kafka** | Topic `waveforms` (kept 7 days) and topic `picks`. Buffers data between services and keeps it for back-fill. |
 | **Live picker** | Three Deployments, one per profile, in the same Kafka consumer group. Only one runs at a time. |
 | **Back-fill job** | Kubernetes Job that re-reads an eco period with EQTransformer and writes extra picks. |
-| **Associator** | Groups picks: 3 or more stations within 10 s = earthquake. Saves it to PostgreSQL with a unique key, so repeats cannot create duplicates. |
+| **Associator** | Groups picks from at least three stations within 10 s. Saves events in PostgreSQL and merges overlapping detections within one regional run. |
 | **PostgreSQL** | Stores earthquakes and the history of profile changes. |
 | **Results API** | FastAPI service: `GET /events`. |
 | **Carbon signal** | Serves the simulated carbon intensity from a scenario file (`GET /intensity`). |
@@ -126,5 +126,6 @@ Each decision is a short record with context, alternatives, consequences and sus
 | [ADR-007](docs/adr/007-local-kubernetes-cpu.md) | Containers on local Kubernetes, CPU only |
 | [ADR-008](docs/adr/008-measurement-and-monitoring.md) | CodeCarbon with Prometheus and Grafana |
 | [ADR-009](docs/adr/009-ci-cd.md) | GitHub Actions with a self-hosted deploy runner |
+| [ADR-010](docs/adr/010-latency-and-deduplication.md) | Live timing and duplicate handling |
 
 [How to edit the diagrams](docs/architecture/README.md) · [Local vs server deployment](DEPLOYMENT_COMPARISON.md) · [Project checklist](CHECKLIST.md)
