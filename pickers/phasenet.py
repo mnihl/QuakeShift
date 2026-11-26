@@ -45,12 +45,54 @@ def build_stream(window: dict[str, Any]) -> Stream:
     return Stream(traces)
 
 
+def extract_picks(
+    output: Any,
+    window: dict[str, Any],
+    *,
+    profile: str,
+    model_version: str,
+    source: str,
+    picked_at: str | None = None,
+) -> list[dict[str, Any]]:
+    """Convert SeisBench ClassifyOutput picks into sorted CONTRACTS.md `picks` dicts."""
+    picked_iso = format_utc_ms(picked_at or UTCDateTime())
+    ingested_iso = window.get("ingested_at") or picked_iso
+    start = UTCDateTime(window["window_start"])
+    end = UTCDateTime(window["window_end"])
+    station = window["station"]
+
+    picks = []
+    for raw in output.picks:
+        phase = str(raw.phase).upper()
+        peak = UTCDateTime(raw.peak_time)
+        if phase not in ("P", "S") or not (start <= peak < end):
+            continue
+        pick_time = format_utc_ms(peak)
+        picks.append(
+            {
+                "pick_id": f"{station}:{phase}:{pick_time}:{profile}",
+                "window_id": window["window_id"],
+                "station": station,
+                "phase": phase,
+                "pick_time": pick_time,
+                "probability": round(float(raw.peak_value), 4),
+                "profile": profile,
+                "model_version": model_version,
+                "source": source,
+                "ingested_at": ingested_iso,
+                "picked_at": picked_iso,
+            }
+        )
+    return sorted(picks, key=lambda p: (p["pick_time"], p["phase"]))
+
+
 class PhaseNetPicker:
     """Runs SeisBench PhaseNet (INSTANCE v2) on 60-second windows and returns CONTRACTS.md picks."""
 
     def __init__(self, profile: str = "balanced", source: str = "live", model: Any = None) -> None:
         self.profile = profile
         self.source = source
+        self.model_version = MODEL_VERSION
         if model is None:
             import seisbench.models as sbm
 
@@ -68,35 +110,14 @@ class PhaseNetPicker:
     ) -> list[dict[str, Any]]:
         """Identify P and S arrivals in one waveform window in CONTRACTS.md `picks` format."""
         output = self.model.classify(build_stream(window))
-        picked_iso = format_utc_ms(picked_at or UTCDateTime())
-        ingested_iso = window.get("ingested_at") or picked_iso
-        start = UTCDateTime(window["window_start"])
-        end = UTCDateTime(window["window_end"])
-        station = window["station"]
-
-        picks = []
-        for raw in output.picks:
-            phase = str(raw.phase).upper()
-            peak = UTCDateTime(raw.peak_time)
-            if phase not in ("P", "S") or not (start <= peak < end):
-                continue
-            pick_time = format_utc_ms(peak)
-            picks.append(
-                {
-                    "pick_id": f"{station}:{phase}:{pick_time}:{self.profile}",
-                    "window_id": window["window_id"],
-                    "station": station,
-                    "phase": phase,
-                    "pick_time": pick_time,
-                    "probability": round(float(raw.peak_value), 4),
-                    "profile": self.profile,
-                    "model_version": MODEL_VERSION,
-                    "source": source or self.source,
-                    "ingested_at": ingested_iso,
-                    "picked_at": picked_iso,
-                }
-            )
-        return sorted(picks, key=lambda p: (p["pick_time"], p["phase"]))
+        return extract_picks(
+            output,
+            window,
+            profile=self.profile,
+            model_version=self.model_version,
+            source=source or self.source,
+            picked_at=picked_at,
+        )
 
 
 def deduplicate_picks(picks: list[dict[str, Any]], tolerance_s: float = 0.5) -> list[dict[str, Any]]:
