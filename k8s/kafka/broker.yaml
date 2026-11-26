@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: quakeshift
+spec:
+  clusterIP: None
+  selector:
+    app: kafka
+  ports:
+    - name: internal
+      port: 9092
+    - name: local
+      port: 19092
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  namespace: quakeshift
+spec:
+  serviceName: kafka
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: kafka
+          image: apache/kafka:4.2.2
+          ports:
+            - name: internal
+              containerPort: 9092
+            - name: local
+              containerPort: 19092
+          env:
+            - name: KAFKA_NODE_ID
+              value: "1"
+            - name: KAFKA_PROCESS_ROLES
+              value: broker,controller
+            - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+              value: 1@localhost:9093
+            - name: KAFKA_CONTROLLER_LISTENER_NAMES
+              value: CONTROLLER
+            - name: KAFKA_INTER_BROKER_LISTENER_NAME
+              value: INTERNAL
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: INTERNAL:PLAINTEXT,LOCAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+            - name: KAFKA_LISTENERS
+              value: INTERNAL://:9092,LOCAL://:19092,CONTROLLER://:9093
+            # The local listener is reached through kubectl port-forward.
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: INTERNAL://kafka.quakeshift.svc:9092,LOCAL://localhost:19092
+            - name: KAFKA_LOG_DIRS
+              value: /var/lib/kafka/data/logs
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+              value: "false"
+            - name: KAFKA_HEAP_OPTS
+              value: -Xms256m -Xmx512m
+          readinessProbe:
+            tcpSocket:
+              port: internal
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/kafka/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 5Gi

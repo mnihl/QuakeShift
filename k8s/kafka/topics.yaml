@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-topics
+  namespace: quakeshift
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: topics
+          image: apache/kafka:4.2.2
+          command: [sh, -ec]
+          args:
+            - |
+              until /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka:9092 >/dev/null 2>&1; do
+                sleep 2
+              done
+              create_topic() {
+                /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 \
+                  --create --if-not-exists --topic "$1" --partitions "$2" \
+                  --replication-factor 1 --config retention.ms=604800000
+              }
+              create_topic waveforms 6
+              create_topic picks 3
+  activeDeadlineSeconds: 300

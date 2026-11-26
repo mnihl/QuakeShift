@@ -49,7 +49,7 @@ Use one regional array and one replay run per result set. Start each independent
 
 ### Message Schemas (JSON, UTF-8)
 
-**`waveforms` message.** Once the buffer fills, publish a trailing 60-second window every 10 seconds. Each channel contains 6,000 samples at 100 Hz, and `window_end` is exclusive. EQTransformer takes the full window, and SeisBench runs PhaseNet on shorter pieces of it. The example shows two sample values per channel. [CPU benchmark](docs/adr/003-three-processing-profiles.md#cpu-benchmark)
+**`waveforms` message.** Once the buffer fills, publish a trailing 60-second window every 10 seconds. Each channel contains 6,000 samples at 100 Hz, and `window_end` is exclusive. The `t_ingested` Kafka header carries the same UTC timestamp as `ingested_at`. EQTransformer takes the full window, and SeisBench runs PhaseNet on shorter pieces of it. The example shows two sample values per channel. [CPU benchmark](docs/adr/003-three-processing-profiles.md#cpu-benchmark)
 ```json
 {
   "window_id": "GE.APE:2024-05-01T10:00:00Z",
