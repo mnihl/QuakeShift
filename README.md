@@ -4,7 +4,7 @@ QuakeShift is a **carbon-aware earthquake detection system** for *AI Architectur
 
 **Repository:** <https://github.com/mnihl/QuakeShift>
 
-**Current status.** The local cluster can replay recordings into Kafka. The two replays and laptop CPU benchmark are ready. [Project checklist](CHECKLIST.md)
+**Current status.** Recordings reach Kafka, and PhaseNet can identify arrivals in the replay. The associator saves events in PostgreSQL from sample picks. [Project checklist](CHECKLIST.md)
 
 The planned pipeline uses **CPU-only containers on local Kubernetes (`kind`)** and pretrained models.
 
@@ -34,6 +34,28 @@ $env:KAFKA_BOOTSTRAP = "localhost:19092"
 ```
 
 The first windows go out after 60 seconds. After three minutes, Kafka should acknowledge 78 windows across six stations. For Tyrol, add `tyrol` to the download and sender commands.
+
+## Test the associator locally
+
+With Kafka running in kind, set up PostgreSQL and load the associator image.
+
+```powershell
+kubectl --context kind-quakeshift apply -k k8s/postgres
+kubectl --context kind-quakeshift -n quakeshift rollout status statefulset/postgres --timeout=300s
+docker build -t quakeshift-associator:local associator
+kind load docker-image quakeshift-associator:local --name quakeshift
+kubectl --context kind-quakeshift apply -f k8s/associator/
+kubectl --context kind-quakeshift -n quakeshift rollout status deployment/associator --timeout=120s
+```
+
+PostgreSQL loads the schema when it first creates its data directory. After rebuilding and loading the associator image, restart the deployment to use the new image.
+
+Send three made-up P arrivals. After the associator logs an `inserted` event, check for one row with three stations. Start real replay comparisons with fresh results.
+
+```powershell
+kubectl --context kind-quakeshift -n quakeshift exec deployment/associator -- python -m associator.sample_picks
+kubectl --context kind-quakeshift -n quakeshift exec postgres-0 -- psql -U quakeshift -d quakeshift -c "SELECT first_pick_time, station_count, source FROM events WHERE first_pick_time = '2000-01-01T00:00:00Z';"
+```
 
 ## Documentation
 

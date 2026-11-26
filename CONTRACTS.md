@@ -24,6 +24,12 @@ Delivery is **at-least-once** across Kafka; consumers commit offsets **only afte
 | **2. Pick** | Same `(station, phase)` with `pick_time` within **±0.5 s** | Associator merges matching picks inside its rolling window and keeps the highest `probability`. Covers redelivery, overlapping windows, and back-fill picks. |
 | **3. Event** | Overlapping time ranges (`event_window`) in a single regional run | Merge the picks and stations into the existing event, or insert a new event when there is no match. PostgreSQL's GiST exclusion constraint prevents overlapping rows. |
 
+### Association
+
+Start an event when at least three distinct stations report P arrivals within 10 seconds. Include S arrivals at those stations between their own P arrival and 10 seconds after the group's last P arrival. Form live and backfill groups separately.
+
+The associator keeps pending picks for five minutes after receipt. It acknowledges each Kafka message once the pending pick and any event changes are committed.
+
 Use one regional array and one replay run per result set. Start each independent comparison with fresh results. Form the half-open event range `[first_pick_time − 5 s, last_pick_time + 10 s)` using original waveform timestamps. Start with those padding values and test live and back-fill matches during replay. A time-only rule can merge two distinct earthquakes if their padded ranges overlap.
 
 1. In a transaction, look for an overlap using `SELECT ... FOR UPDATE`. Insert if there is no match. Flag matches with multiple saved events for review and leave those rows intact.
@@ -92,51 +98,7 @@ Use one regional array and one replay run per result set. Start each independent
 
 ## 3. PostgreSQL Contract
 
-PostgreSQL stores **results and control history only** (never raw waveforms).
-
-```sql
-CREATE TABLE IF NOT EXISTS events (
-    id                  BIGSERIAL PRIMARY KEY,
-    first_pick_time     TIMESTAMPTZ NOT NULL,
-    last_pick_time      TIMESTAMPTZ NOT NULL,
-    event_window        TSTZRANGE NOT NULL,
-    station_count       INTEGER NOT NULL CHECK (station_count >= 3),
-    stations            TEXT[] NOT NULL,
-    picks               JSONB NOT NULL,
-    detected_by_profile TEXT NOT NULL CHECK (detected_by_profile IN ('eco', 'balanced', 'performance')),
-    source              TEXT NOT NULL CHECK (source IN ('live', 'backfill')),
-    updated_by          TEXT NOT NULL CHECK (updated_by IN ('live', 'backfill')),
-    pipeline_latency_s  DOUBLE PRECISION,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    EXCLUDE USING gist (event_window WITH &&)
-);
-
-CREATE TABLE IF NOT EXISTS profile_changes (
-    id                  BIGSERIAL PRIMARY KEY,
-    changed_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    from_profile        TEXT,
-    to_profile          TEXT NOT NULL CHECK (to_profile IN ('eco', 'balanced', 'performance')),
-    carbon_intensity    DOUBLE PRECISION NOT NULL,
-    kafka_lag           BIGINT NOT NULL DEFAULT 0,
-    replicas            INTEGER NOT NULL DEFAULT 1,
-    reason              TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS backfill_periods (
-    id                  BIGSERIAL PRIMARY KEY,
-    period_start        TIMESTAMPTZ NOT NULL,
-    period_end          TIMESTAMPTZ NOT NULL,
-    retention_deadline  TIMESTAMPTZ NOT NULL,
-    status              TEXT NOT NULL CHECK (status IN ('pending', 'scheduled', 'running', 'done', 'expired')),
-    scheduled_for       TIMESTAMPTZ,
-    job_name            TEXT,
-    events_added        INTEGER NOT NULL DEFAULT 0,
-    events_updated      INTEGER NOT NULL DEFAULT 0,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-```
+The [database schema](k8s/postgres/schema.sql) defines `events`, `profile_changes`, `backfill_periods`, and the associator's short-lived `association_picks` table. Raw waveforms stay in Kafka.
 
 - **Aftershock boost.** `carbon-controller` checks for events first detected live using `WHERE created_at >= NOW() - INTERVAL '10 minutes' AND source = 'live'`. This includes live events later updated by back-fill.
 

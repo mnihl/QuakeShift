@@ -14,7 +14,7 @@ QuakeShift detects earthquakes in live data from European seismometer stations u
 - An earthquake sends a fast **P wave** and a slower **S wave**. **Picking** means marking when each wave reaches a station. A *pick* is one such timestamp.
 - **STA/LTA** is a classic, almost free trigger: it compares the signal level of the last second with the last 30 seconds.
 - **PhaseNet** and **EQTransformer** are pretrained neural networks (SeisBench library) that pick much more accurately. EQTransformer is the larger, slower one.
-- If picks from **3 or more stations** arrive within 10 seconds, it is an earthquake. The **EMSC** catalogue is our reference to check our results.
+- If **3 or more stations** report P-wave arrivals within 10 seconds, QuakeShift flags a likely earthquake. We check detections against the **EMSC** catalogue.
 
 ### Features
 
@@ -75,7 +75,7 @@ Targets are a first draft; we check them on replayed data.
 | **Kafka** | Topic `waveforms` (kept 7 days) and topic `picks`. Buffers data between services and keeps it for back-fill. |
 | **Live picker** | Three Deployments, one per profile, in the same Kafka consumer group. Only one runs at a time. |
 | **Back-fill job** | Kubernetes Job that re-reads an eco period with EQTransformer and writes extra picks. |
-| **Associator** | Groups picks from at least three stations within 10 s. Saves events in PostgreSQL and merges overlapping detections within one regional run. |
+| **Associator** | Groups P-wave picks from at least three stations within 10 s. Saves events in PostgreSQL and merges overlapping detections within one regional run. |
 | **PostgreSQL** | Stores earthquakes and the history of profile changes. |
 | **Results API** | FastAPI service: `GET /events`. |
 | **Carbon signal** | Serves the simulated carbon intensity from a scenario file (`GET /intensity`). |

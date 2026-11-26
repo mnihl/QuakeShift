@@ -25,7 +25,7 @@ Use this as one shared list. Either teammate can pick up any unchecked item. Dis
 
 - [x] Add the local [kind config](kind-config.yaml) and the [quakeshift namespace](k8s/base/namespace.yaml).
 - [x] Set up Kafka under `k8s/kafka/` with a single-broker KRaft StatefulSet, a topic-init Job, and a lag exporter for Prometheus. Use six partitions for `waveforms`, three for `picks`, and seven days of retention for both.
-- [ ] Set up PostgreSQL under `k8s/postgres/` with a StatefulSet, persistent volume claim, Service, and initial SQL for `events`, `profile_changes`, and `backfill_periods`.
+- [x] Set up PostgreSQL under `k8s/postgres/` with a StatefulSet, persistent volume claim, Service, and initial SQL for `events`, `profile_changes`, and `backfill_periods`.
 
 ### Connect replay, detection, and results
 
@@ -34,8 +34,9 @@ Use this as one shared list. Either teammate can pick up any unchecked item. Dis
   - [x] Send the windows to Kafka at the original speed. A consumer received all 78 Umbertide windows with their waveform samples and timing headers intact. [Replay sender](ingestor/send.py)
 - [ ] Build one Python package for the pickers and the backfill job. Support `eco` (STA/LTA and PhaseNet on core stations), `balanced` (PhaseNet), and `performance` (EQTransformer), using the `live-pickers` consumer group. Backfill uses its own group, seeks to the recorded time, writes to `picks`, and commits offsets after a successful write. Add `/health`, `/ready`, and `/metrics`.
 - [ ] Add `k8s/pickers/` manifests for the ingestor, `picker-eco`, `picker-balanced`, `picker-performance`, and the backfill Job template. Include readiness probes, CPU and memory limits, and the `CORE_STATIONS` ConfigMap.
-- [ ] Build and deploy the `associator`. Read `picks` with the `associator` group, merge repeated picks within ±0.5 seconds, and apply the three-station rule. Use the agreed PostgreSQL rule to insert or update an event and only commit the Kafka offset after the database write. Add `/health`, `/ready`, and `/metrics`.
-- [ ] Add a small synthetic `picks` producer so the associator can be tested before the real picker is ready.
+- [x] Build and deploy the `associator`. Read `picks` with the `associator` group, merge repeated picks within ±0.5 seconds, and apply the three-station rule. Use the agreed PostgreSQL rule to insert or update an event and only commit the Kafka offset after the database write. Add `/health`, `/ready`, and `/metrics`.
+- [x] Add a small synthetic `picks` producer so the associator can be tested before the real picker is ready.
+  - Three sample picks produced one event. Pending picks survived an associator restart, saved events survived a database restart, and backfill preserved the original live timing. [Local check](README.md#test-the-associator-locally)
 - [ ] Build and deploy `results-api` with `GET /events` and `GET /history/profiles`. Use a seeded PostgreSQL database to test it independently.
 - [ ] Run one known earthquake through the real pipeline on `kind`. Check that the expected event appears in `GET /events`.
 
